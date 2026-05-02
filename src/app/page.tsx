@@ -741,203 +741,211 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [loadData])
 
-  // ── Player & Admin views ──
+  // ── Player & Admin views (full-screen, no layout) ──
   if (currentView === 'player') return <VideoPlayer />
   if (currentView === 'admin') return <AdminPanel />
 
-  // ── Navigation pages ──
-  if (currentView === 'live') return <LiveMatchPage streams={streams} videos={videos} />
-  if (currentView === 'popular') return <PopularPage videos={videos} />
-  if (currentView === 'sports') return <SportsPage streams={streams} videos={videos} />
-  if (currentView === 'schedule') return <SchedulePage streams={streams} />
-  if (currentView === 'leagues') return <LeaguesPage />
-  if (currentView === 'highlights') return <HighlightsPage videos={videos} />
-  if (currentView === 'favorites') return <FavoritesPage videos={videos} />
-  if (currentView === 'mylist') return <MyListPage videos={videos} />
-  if (currentView === 'settings') return <SettingsPage />
-
-  // ── Home page ──
+  // ── Derived data ──
   const liveStreams = streams.filter(s => s.status === 'live')
   const featuredVideos = videos.filter(v => v.isFeatured)
   const highlightVideos = videos.filter(v => v.category === 'highlights')
   const featuredStream = liveStreams[0]
   const filteredVideos = activeFilter === 'all' ? videos : videos.filter(v => v.category === activeFilter)
 
+  // ── Route to the correct page content ──
+  const renderMainContent = () => {
+    if (currentView === 'live') return <LiveMatchPage streams={streams} videos={videos} />
+    if (currentView === 'popular') return <PopularPage videos={videos} />
+    if (currentView === 'sports') return <SportsPage streams={streams} videos={videos} />
+    if (currentView === 'schedule') return <SchedulePage streams={streams} />
+    if (currentView === 'leagues') return <LeaguesPage />
+    if (currentView === 'highlights') return <HighlightsPage videos={videos} />
+    if (currentView === 'favorites') return <FavoritesPage videos={videos} />
+    if (currentView === 'mylist') return <MyListPage videos={videos} />
+    if (currentView === 'settings') return <SettingsPage />
+
+    // Default: Home page content
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-32">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#00ff88]/20 border-t-[#00ff88]" />
+            <p className="text-xs text-white/25">Loading...</p>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-8 p-4 lg:p-5">
+        {/* Category Tabs — mobile */}
+        <div className="lg:hidden">
+          <CategoryTabs onFilter={setActiveFilter} />
+        </div>
+
+        {/* Hero Banner — mobile */}
+        {featuredStream && <HeroBanner stream={featuredStream} />}
+
+        {/* Live Now Slider */}
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Radio className="h-4 w-4 text-[#ff3b3b]" />
+              <h2 className="text-[15px] font-bold text-white">Live Now</h2>
+              <span className="flex items-center gap-1 rounded-md bg-[#ff3b3b]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#ff3b3b]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#ff3b3b] animate-pulse" />
+                {liveStreams.length}
+              </span>
+            </div>
+            <button onClick={() => useAppStore.getState().setCurrentView('live')} className="flex items-center gap-1 text-[12px] font-medium text-[#00ff88]">
+              View All <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <LiveSlider streams={streams} />
+        </section>
+
+        {/* Continue Watching — mobile */}
+        {continueWatching.length > 0 && (
+          <section className="fade-in-up lg:hidden">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Clock className="h-4 w-4 text-[#f59e0b]" />
+                <h2 className="text-[15px] font-bold text-white">Continue Watching</h2>
+              </div>
+            </div>
+            <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+              {continueWatching.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    const saved = localStorage.getItem('sportix-continue')
+                    if (saved) {
+                      const arr = JSON.parse(saved)
+                      const updated = arr.filter((c: ContinueData) => c.id !== item.id)
+                      localStorage.setItem('sportix-continue', JSON.stringify(updated))
+                    }
+                    setContinueWatching(prev => prev.filter(c => c.id !== item.id))
+                  }}
+                  className="flex-shrink-0 w-[200px] overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] text-left transition-all active:scale-[0.98] touch-active"
+                >
+                  <div className="relative aspect-video overflow-hidden">
+                    <div
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{
+                        backgroundImage: item.thumbnail ? `url(${item.thumbnail})` : undefined,
+                        backgroundColor: item.thumbnail ? undefined : 'linear-gradient(135deg, #111827, #1a2235)',
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black/30" />
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+                      <div className="h-full bg-[#00ff88]" style={{ width: `${item.progress * 100}%` }} />
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
+                        <Play className="h-3 w-3 text-white fill-white ml-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="px-2.5 py-2">
+                    <p className="text-[11px] font-medium text-white/80 line-clamp-1">{item.title}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Popular / Top Picks */}
+        {featuredVideos.length > 0 && (
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Star className="h-4 w-4 text-[#00ff88]" />
+                <h2 className="text-[15px] font-bold text-white">Top Picks For You</h2>
+              </div>
+              <button onClick={() => useAppStore.getState().setCurrentView('popular')} className="flex items-center gap-1 text-[12px] font-medium text-[#00ff88]">
+                View All <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {featuredVideos.map((video) => (
+                <div key={video.id} className="relative">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleFavorite(video.id) }}
+                    className="absolute top-2 left-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-all hover:bg-black/60"
+                    title="Add to favorites"
+                  >
+                    <Heart className={`h-3.5 w-3.5 transition-colors ${favorites.includes(video.id) ? 'text-[#ff3b3b] fill-[#ff3b3b]' : 'text-white/60'}`} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleMyList(video.id) }}
+                    className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-all hover:bg-black/60"
+                    title="Add to my list"
+                  >
+                    <ListVideo className={`h-3.5 w-3.5 transition-colors ${myList.includes(video.id) ? 'text-[#00ff88]' : 'text-white/60'}`} />
+                  </button>
+                  <VideoCard video={video} onSelect={(v) => openVideo(v, useAppStore)} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Highlights */}
+        {highlightVideos.length > 0 && (
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Flame className="h-4 w-4 text-[#ff3b3b]" />
+                <h2 className="text-[15px] font-bold text-white">Highlights</h2>
+              </div>
+              <button onClick={() => useAppStore.getState().setCurrentView('highlights')} className="flex items-center gap-1 text-[12px] font-medium text-[#00ff88]">
+                View All <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {highlightVideos.map((video) => (
+                <VideoCard key={video.id} video={video} onSelect={(v) => openVideo(v, useAppStore)} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Filtered / All Videos */}
+        {filteredVideos.length > 0 && activeFilter !== 'all' && (
+          <ContentSection
+            title={`${activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)}`}
+            icon={<TrendingUp className="h-4 w-4 text-[#06b6d4]" />}
+            viewAll
+          >
+            {filteredVideos.map((video) => (
+              <VideoCard key={video.id} video={video} onSelect={(v) => openVideo(v, useAppStore)} />
+            ))}
+          </ContentSection>
+        )}
+
+        {/* Empty state */}
+        {streams.length === 0 && videos.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.03]">
+              <TrendingUp className="h-7 w-7 text-white/10" />
+            </div>
+            <h3 className="text-sm font-semibold text-white/50">No content yet</h3>
+            <p className="mt-1 text-xs text-white/25">Check back soon for live matches and highlights</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Shared layout for ALL non-player/admin views ──
   return (
     <div className="sportix-bg min-h-screen flex flex-col">
       <Header />
-
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-32">
-              <div className="flex flex-col items-center gap-3">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#00ff88]/20 border-t-[#00ff88]" />
-                <p className="text-xs text-white/25">Loading...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-8 p-4 lg:p-5">
-              {/* Category Tabs — mobile */}
-              <div className="lg:hidden">
-                <CategoryTabs onFilter={setActiveFilter} />
-              </div>
-
-              {/* Hero Banner — mobile */}
-              {featuredStream && <HeroBanner stream={featuredStream} />}
-
-              {/* Live Now Slider */}
-              <section>
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <Radio className="h-4 w-4 text-[#ff3b3b]" />
-                    <h2 className="text-[15px] font-bold text-white">Live Now</h2>
-                    <span className="flex items-center gap-1 rounded-md bg-[#ff3b3b]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#ff3b3b]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#ff3b3b] animate-pulse" />
-                      {liveStreams.length}
-                    </span>
-                  </div>
-                  <button onClick={() => useAppStore.getState().setCurrentView('live')} className="flex items-center gap-1 text-[12px] font-medium text-[#00ff88]">
-                    View All <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <LiveSlider streams={streams} />
-              </section>
-
-              {/* Continue Watching — mobile */}
-              {continueWatching.length > 0 && (
-                <section className="fade-in-up lg:hidden">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Clock className="h-4 w-4 text-[#f59e0b]" />
-                      <h2 className="text-[15px] font-bold text-white">Continue Watching</h2>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
-                    {continueWatching.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          const saved = localStorage.getItem('sportix-continue')
-                          if (saved) {
-                            const arr = JSON.parse(saved)
-                            const updated = arr.filter((c: ContinueData) => c.id !== item.id)
-                            localStorage.setItem('sportix-continue', JSON.stringify(updated))
-                          }
-                          setContinueWatching(prev => prev.filter(c => c.id !== item.id))
-                        }}
-                        className="flex-shrink-0 w-[200px] overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] text-left transition-all active:scale-[0.98] touch-active"
-                      >
-                        <div className="relative aspect-video overflow-hidden">
-                          <div
-                            className="absolute inset-0 bg-cover bg-center"
-                            style={{
-                              backgroundImage: item.thumbnail ? `url(${item.thumbnail})` : undefined,
-                              backgroundColor: item.thumbnail ? undefined : 'linear-gradient(135deg, #111827, #1a2235)',
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-black/30" />
-                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
-                            <div className="h-full bg-[#00ff88]" style={{ width: `${item.progress * 100}%` }} />
-                          </div>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
-                              <Play className="h-3 w-3 text-white fill-white ml-0.5" />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="px-2.5 py-2">
-                          <p className="text-[11px] font-medium text-white/80 line-clamp-1">{item.title}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Popular / Top Picks */}
-              {featuredVideos.length > 0 && (
-                <section>
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Star className="h-4 w-4 text-[#00ff88]" />
-                      <h2 className="text-[15px] font-bold text-white">Top Picks For You</h2>
-                    </div>
-                    <button onClick={() => useAppStore.getState().setCurrentView('popular')} className="flex items-center gap-1 text-[12px] font-medium text-[#00ff88]">
-                      View All <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                    {featuredVideos.map((video) => (
-                      <div key={video.id} className="relative">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); toggleFavorite(video.id) }}
-                          className="absolute top-2 left-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-all hover:bg-black/60"
-                          title="Add to favorites"
-                        >
-                          <Heart className={`h-3.5 w-3.5 transition-colors ${favorites.includes(video.id) ? 'text-[#ff3b3b] fill-[#ff3b3b]' : 'text-white/60'}`} />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); toggleMyList(video.id) }}
-                          className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-all hover:bg-black/60"
-                          title="Add to my list"
-                        >
-                          <ListVideo className={`h-3.5 w-3.5 transition-colors ${myList.includes(video.id) ? 'text-[#00ff88]' : 'text-white/60'}`} />
-                        </button>
-                        <VideoCard video={video} onSelect={(v) => openVideo(v, useAppStore)} />
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Highlights */}
-              {highlightVideos.length > 0 && (
-                <section>
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Flame className="h-4 w-4 text-[#ff3b3b]" />
-                      <h2 className="text-[15px] font-bold text-white">Highlights</h2>
-                    </div>
-                    <button onClick={() => useAppStore.getState().setCurrentView('highlights')} className="flex items-center gap-1 text-[12px] font-medium text-[#00ff88]">
-                      View All <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                    {highlightVideos.map((video) => (
-                      <VideoCard key={video.id} video={video} onSelect={(v) => openVideo(v, useAppStore)} />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Filtered / All Videos */}
-              {filteredVideos.length > 0 && activeFilter !== 'all' && (
-                <ContentSection
-                  title={`${activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)}`}
-                  icon={<TrendingUp className="h-4 w-4 text-[#06b6d4]" />}
-                  viewAll
-                >
-                  {filteredVideos.map((video) => (
-                    <VideoCard key={video.id} video={video} onSelect={(v) => openVideo(v, useAppStore)} />
-                  ))}
-                </ContentSection>
-              )}
-
-              {/* Empty state */}
-              {streams.length === 0 && videos.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-24 text-center">
-                  <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.03]">
-                    <TrendingUp className="h-7 w-7 text-white/10" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-white/50">No content yet</h3>
-                  <p className="mt-1 text-xs text-white/25">Check back soon for live matches and highlights</p>
-                </div>
-              )}
-            </div>
-          )}
+          {renderMainContent()}
         </main>
       </div>
 
