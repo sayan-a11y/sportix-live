@@ -1,11 +1,11 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { Search, Bell, Crown, Menu, X } from 'lucide-react'
+import { Search, Bell, Crown, X, Calendar, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
 
 export default function Header() {
-  const { currentView, setCurrentView, incrementLogoClicks, resetLogoClicks, isAdminUnlocked } = useAppStore()
+  const { currentView, incrementLogoClicks, resetLogoClicks } = useAppStore()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -13,91 +13,90 @@ export default function Header() {
   const handleLogoClick = useCallback(() => {
     incrementLogoClicks()
     if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      resetLogoClicks()
-    }, 3000)
+    timerRef.current = setTimeout(() => { resetLogoClicks() }, 3000)
   }, [incrementLogoClicks, resetLogoClicks])
 
   useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [])
 
   if (currentView === 'admin') return null
 
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-[#02040a]/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6">
-        {/* Left: Logo */}
-        <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-[#0a0e1a]/90 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 items-center justify-between gap-4 px-4 lg:px-6">
+        {/* Left: Date + Logo */}
+        <div className="flex items-center gap-4">
+          <span className="hidden text-xs font-medium text-white/40 lg:flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" />
+            {today}
+          </span>
           <button
             onClick={handleLogoClick}
-            className="flex items-center gap-2 transition-all duration-200 hover:opacity-80 active:scale-95 touch-active"
+            className="flex items-center gap-2.5 transition-all duration-200 hover:opacity-80 active:scale-[0.97] touch-active"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00ff88]/10 ring-1 ring-[#00ff88]/20">
-              <img src="/logos/sportix-logo.png" alt="Sportix" className="h-7 w-7 rounded-lg object-cover" />
+            <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-[#00ff88] to-[#00cc6a] shadow-lg shadow-[#00ff88]/20">
+              <span className="text-[#02040a] text-sm font-black">S</span>
             </div>
-            <span className="hidden text-lg font-bold tracking-tight text-white sm:block">
-              Sport<span className="text-[#00ff88]">ix</span>
+            <span className="hidden text-base font-bold tracking-tight text-white sm:block">
+              Sport<span className="text-[#00ff88]">ix</span>{' '}
+              <span className="text-white/40 font-normal text-xs">Live</span>
             </span>
           </button>
         </div>
 
-        {/* Center: Search */}
-        <div className="flex-1 max-w-md mx-4">
+        {/* Center: Search — always visible on md+ */}
+        <div className="flex-1 max-w-lg">
           {searchOpen ? (
-            <div className="flex items-center gap-2 animate-in fade-in-up duration-200">
+            <div className="flex items-center gap-2 fade-in-up">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search matches, highlights..."
-                  className="w-full rounded-xl border border-white/10 bg-white/5 py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/30 focus:border-[#00ff88]/30 focus:outline-none focus:ring-1 focus:ring-[#00ff88]/20 backdrop-blur-sm"
+                  placeholder="Search for matches, teams, leagues..."
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] py-2 pl-9 pr-4 text-sm text-white placeholder:text-white/25 focus:border-[#00ff88]/30 focus:outline-none focus:ring-1 focus:ring-[#00ff88]/20"
                   autoFocus
-                  onBlur={() => {
-                    if (!searchQuery) setSearchOpen(false)
-                  }}
+                  onBlur={() => { if (!searchQuery) setSearchOpen(false) }}
                 />
               </div>
-              <button
-                onClick={() => { setSearchOpen(false); setSearchQuery('') }}
-                className="rounded-lg p-2 text-white/40 hover:text-white hover:bg-white/5 transition-colors"
-              >
+              <button onClick={() => { setSearchOpen(false); setSearchQuery('') }} className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/5">
                 <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
             <button
               onClick={() => setSearchOpen(true)}
-              className="hidden w-full items-center gap-3 rounded-xl border border-white/5 bg-white/3 px-4 py-2 text-sm text-white/30 transition-all hover:bg-white/5 hover:border-white/10 md:flex"
+              className="hidden w-full items-center gap-2.5 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3.5 py-2 text-sm text-white/25 transition-all hover:bg-white/[0.05] hover:border-white/[0.08] md:flex"
             >
               <Search className="h-4 w-4" />
-              <span>Search matches, highlights...</span>
-              <kbd className="ml-auto hidden rounded-md bg-white/5 px-2 py-0.5 text-xs text-white/20 lg:block">⌘K</kbd>
+              <span>Search for matches, teams, leagues...</span>
             </button>
           )}
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSearchOpen(!searchOpen)}
-            className="rounded-xl p-2.5 text-white/50 transition-all hover:bg-white/5 hover:text-white md:hidden"
-          >
-            <Search className="h-5 w-5" />
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => setSearchOpen(!searchOpen)} className="rounded-lg p-2 text-white/40 transition-all hover:bg-white/5 hover:text-white/70 md:hidden">
+            <Search className="h-[18px] w-[18px]" />
           </button>
-          <button className="relative rounded-xl p-2.5 text-white/50 transition-all hover:bg-white/5 hover:text-white">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#00ff88] ring-2 ring-[#02040a]" />
+          <button className="relative rounded-lg p-2 text-white/40 transition-all hover:bg-white/5 hover:text-white/70">
+            <Bell className="h-[18px] w-[18px]" />
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#ff3b3b] text-[9px] font-bold text-white shadow-lg">3</span>
           </button>
-          <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-white/70 transition-all hover:bg-white/5">
-            <Crown className="h-4 w-4 text-[#00ff88]" />
-            <span className="hidden sm:inline">Premium</span>
-          </div>
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#00ff88]/30 to-[#00ff88]/5 ring-1 ring-[#00ff88]/20 cursor-pointer transition-all hover:ring-[#00ff88]/40" />
+          <button className="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#00ff88] transition-all hover:bg-[#00ff88]/5 sm:flex">
+            <Crown className="h-3.5 w-3.5" />
+            Premium
+          </button>
+          <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all hover:bg-white/5">
+            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[#00ff88]/40 to-[#00ff88]/10 ring-1 ring-white/10 cursor-pointer">
+              <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-white/70">A</div>
+            </div>
+            <ChevronDown className="hidden h-3 w-3 text-white/30 lg:block" />
+          </button>
         </div>
       </div>
     </header>

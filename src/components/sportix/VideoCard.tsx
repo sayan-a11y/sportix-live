@@ -1,7 +1,6 @@
 'use client'
 
-import { useAppStore } from '@/lib/store'
-import { Clock, Play, TrendingUp, Eye } from 'lucide-react'
+import { Clock, Play, ArrowRight } from 'lucide-react'
 
 interface VideoItem {
   id: string
@@ -33,6 +32,14 @@ const VIDEO_THUMBNAILS: Record<string, string> = {
   '⚽ El Clásico — Classic Moments': '/thumbnails/el-clasico.png',
 }
 
+const SPORT_LABELS: Record<string, { label: string; color: string }> = {
+  football: { label: 'Football', color: 'bg-emerald-500/10 text-emerald-400' },
+  basketball: { label: 'Basketball', color: 'bg-orange-500/10 text-orange-400' },
+  racing: { label: 'Racing', color: 'bg-red-500/10 text-red-400' },
+  tennis: { label: 'Tennis', color: 'bg-yellow-500/10 text-yellow-400' },
+  highlights: { label: 'Highlights', color: 'bg-[#00ff88]/10 text-[#00ff88]' },
+}
+
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
@@ -42,63 +49,62 @@ function formatDuration(seconds: number): string {
 }
 
 function formatViews(views: number): string {
-  if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M views`
-  if (views >= 1000) return `${(views / 1000).toFixed(0)}K views`
-  return `${views} views`
+  if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`
+  if (views >= 1000) return `${(views / 1000).toFixed(0)}K`
+  return views.toString()
 }
 
 export function VideoCard({ video, onSelect }: { video: VideoItem; onSelect: (v: VideoItem) => void }) {
   const thumbnail = video.thumbnail || VIDEO_THUMBNAILS[video.title]
+  const sport = SPORT_LABELS[video.category] || SPORT_LABELS.highlights
 
   return (
     <button
       onClick={() => onSelect(video)}
-      className="glass-card glass-card-hover group/card overflow-hidden text-left transition-all duration-200 touch-active w-full"
+      className="group/card overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] text-left transition-all duration-200 hover:border-white/[0.1] hover:bg-white/[0.04] active:scale-[0.98] touch-active w-full"
     >
       {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover/card:scale-105"
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover/card:scale-105"
           style={{
             backgroundImage: thumbnail ? `url(${thumbnail})` : undefined,
-            backgroundColor: thumbnail ? undefined : 'linear-gradient(135deg, #1a2235, #243049)',
+            backgroundColor: thumbnail ? undefined : 'linear-gradient(135deg, #111827, #1a2235)',
           }}
         >
           {!thumbnail && (
-            <div className="absolute inset-0 flex items-center justify-center text-4xl opacity-20">
-              {video.category === 'highlights' ? '🎬' : '⚽'}
-            </div>
+            <div className="absolute inset-0 flex items-center justify-center text-3xl opacity-20">🎬</div>
           )}
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
         {/* Play overlay */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover/card:opacity-100">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#00ff88]/20 backdrop-blur-sm ring-1 ring-[#00ff88]/30">
-            <Play className="h-5 w-5 text-[#00ff88] fill-[#00ff88] ml-0.5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#00ff88]/20 backdrop-blur-sm ring-1 ring-[#00ff88]/30 transition-transform group-hover/card:scale-110">
+            <Play className="h-4 w-4 text-[#00ff88] fill-[#00ff88] ml-0.5" />
           </div>
         </div>
 
         {/* Duration badge */}
-        <div className="absolute bottom-2 right-2 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
+        <div className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-sm">
           {formatDuration(video.duration)}
+        </div>
+
+        {/* Sport label */}
+        <div className="absolute top-2 left-2">
+          <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-semibold ${sport.color} backdrop-blur-sm`}>
+            {sport.label}
+          </span>
         </div>
       </div>
 
       {/* Info */}
-      <div className="p-3 sm:p-4">
-        <h3 className="text-sm font-medium text-white/90 line-clamp-2 leading-snug">{video.title}</h3>
-        <div className="mt-2 flex items-center gap-3 text-xs text-white/40">
-          <span className="flex items-center gap-1">
-            <Eye className="h-3 w-3" />
-            {formatViews(video.views)}
-          </span>
-          {video.isFeatured && (
-            <span className="flex items-center gap-1 text-[#00ff88]/70">
-              <TrendingUp className="h-3 w-3" />
-              Featured
-            </span>
-          )}
+      <div className="p-3">
+        <h3 className="text-[13px] font-medium text-white/85 line-clamp-2 leading-snug">{video.title}</h3>
+        <div className="mt-1.5 flex items-center gap-2 text-[11px] text-white/30">
+          <span>{formatViews(video.views)} views</span>
+          <span>•</span>
+          <span>{video.category === 'highlights' ? 'Highlights' : video.category}</span>
         </div>
       </div>
     </button>
@@ -109,38 +115,37 @@ export function ContinueCard({ item, onSelect }: { item: ContinueItem; onSelect:
   return (
     <button
       onClick={() => onSelect(item)}
-      className="glass-card glass-card-hover group/card overflow-hidden text-left transition-all duration-200 touch-active w-full"
+      className="group/card overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] text-left transition-all duration-200 hover:border-white/[0.1] hover:bg-white/[0.04] active:scale-[0.98] touch-active w-full"
     >
       <div className="relative aspect-video overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center brightness-50"
+          className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundColor: 'linear-gradient(135deg, #1a2235, #243049)',
+            backgroundImage: item.thumbnail ? `url(${item.thumbnail})` : undefined,
+            backgroundColor: item.thumbnail ? undefined : 'linear-gradient(135deg, #111827, #1a2235)',
           }}
         />
+        <div className="absolute inset-0 bg-black/40" />
         {/* Progress bar */}
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
-          <div
-            className="h-full bg-[#00ff88] rounded-r-full transition-all"
-            style={{ width: `${item.progress * 100}%` }}
-          />
+          <div className="h-full bg-[#00ff88] transition-all" style={{ width: `${item.progress * 100}%` }} />
         </div>
         {/* Play overlay */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm ring-1 ring-white/10 transition-all group-hover/card:bg-[#00ff88]/20 group-hover/card:ring-[#00ff88]/30">
-            <Play className="h-4 w-4 text-white fill-white ml-0.5" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm ring-1 ring-white/10 transition-all group-hover/card:bg-[#00ff88]/20 group-hover/card:ring-[#00ff88]/30">
+            <Play className="h-3.5 w-3.5 text-white fill-white ml-0.5" />
           </div>
         </div>
         {/* Duration */}
-        <div className="absolute bottom-2 right-2 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
+        <div className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-sm">
           {formatDuration(item.duration)}
         </div>
       </div>
       <div className="p-3">
-        <h3 className="text-sm font-medium text-white/90 line-clamp-1">{item.title}</h3>
-        <span className="mt-1 flex items-center gap-1 text-xs text-white/40">
+        <h3 className="text-[13px] font-medium text-white/85 line-clamp-1">{item.title}</h3>
+        <span className="mt-1 flex items-center gap-1 text-[11px] text-white/30">
           <Clock className="h-3 w-3" />
-          {Math.round(item.progress * 100)}% watched
+          {item.duration - Math.round(item.progress * item.duration)}m left
         </span>
       </div>
     </button>
@@ -151,23 +156,28 @@ export function ContentSection({
   title,
   icon,
   children,
+  viewAll = false,
 }: {
   title: string
   icon: React.ReactNode
   children: React.ReactNode
+  viewAll?: boolean
 }) {
   return (
     <section className="fade-in-up">
-      <div className="mb-4 flex items-center gap-3 px-4 md:px-6">
-        <div className="flex items-center gap-2">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
           {icon}
-          <h2 className="text-xl font-bold text-white">{title}</h2>
+          <h2 className="text-[15px] font-bold text-white">{title}</h2>
         </div>
+        {viewAll && (
+          <button className="flex items-center gap-1 text-[12px] font-medium text-[#00ff88] transition-colors hover:text-[#00dd75]">
+            View All <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
-      <div className="px-4 md:px-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {children}
-        </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        {children}
       </div>
     </section>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 
 interface StreamItem {
@@ -23,6 +23,15 @@ const CATEGORY_ICONS: Record<string, string> = {
   basketball: '🏀',
   racing: '🏎️',
   tennis: '🎾',
+}
+
+const LEAGUE_MAP: Record<string, string> = {
+  'UEFA Champions League — Semi Final': 'UEFA Champions League',
+  'Premier League — Title Race': 'Premier League',
+  'NBA Playoffs — Game 5': 'NBA Playoffs',
+  'La Liga — El Clásico': 'La Liga',
+  'Formula 1 — Monaco Grand Prix': 'Formula 1',
+  'Tennis — Wimbledon Final': 'Wimbledon',
 }
 
 const THUMBNAILS: Record<string, string> = {
@@ -51,132 +60,123 @@ export default function LiveSlider({ streams }: { streams: StreamItem[] }) {
   useEffect(() => {
     checkScroll()
     const el = scrollRef.current
-    el?.addEventListener('scroll', checkScroll)
+    el?.addEventListener('scroll', checkScroll, { passive: true })
     return () => el?.removeEventListener('scroll', checkScroll)
   }, [liveStreams])
 
   const scroll = (dir: 'left' | 'right') => {
     const el = scrollRef.current
     if (!el) return
-    const scrollAmount = el.clientWidth * 0.75
-    el.scrollBy({ left: dir === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' })
-  }
-
-  const formatViewers = (count: number) => {
-    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`
-    return count.toString()
+    el.scrollBy({ left: dir === 'left' ? -el.clientWidth * 0.8 : el.clientWidth * 0.8, behavior: 'smooth' })
   }
 
   if (liveStreams.length === 0) return null
 
   return (
     <section className="relative">
-      <div className="mb-4 flex items-center justify-between px-4 md:px-6">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-3 w-3">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ff3b3b] opacity-75" />
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-[#ff3b3b]" />
-            </span>
-            <h2 className="text-xl font-bold text-white">Live Now</h2>
-          </div>
-          <span className="rounded-full bg-[#ff3b3b]/10 px-3 py-0.5 text-xs font-semibold text-[#ff3b3b] ring-1 ring-[#ff3b3b]/20">
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ff3b3b] opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#ff3b3b]" />
+          </span>
+          <h2 className="text-[15px] font-bold text-white">Live Now</h2>
+          <span className="rounded-full bg-[#ff3b3b]/10 px-2 py-0.5 text-[10px] font-bold text-[#ff3b3b]">
             {liveStreams.length} LIVE
           </span>
         </div>
+        <button className="flex items-center gap-1 text-[12px] font-medium text-[#00ff88] transition-colors hover:text-[#00dd75]">
+          View All Live <ArrowRight className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       <div className="group relative">
-        {/* Scroll buttons - desktop only */}
+        {/* Scroll buttons */}
         {canScrollLeft && (
-          <button
-            onClick={() => scroll('left')}
-            className="absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-[#0b0f1a]/90 p-2 text-white/70 shadow-lg backdrop-blur-sm transition-all hover:text-white hover:bg-[#0b0f1a] md:flex"
-          >
-            <ChevronLeft className="h-5 w-5" />
+          <button onClick={() => scroll('left')}
+            className="absolute left-0 top-0 bottom-0 z-10 hidden w-12 items-center justify-center bg-gradient-to-r from-[#0a0e1a] to-transparent lg:flex">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/50 shadow-lg backdrop-blur-sm transition-all hover:bg-white/10 hover:text-white">
+              <ChevronLeft className="h-4 w-4" />
+            </div>
           </button>
         )}
         {canScrollRight && (
-          <button
-            onClick={() => scroll('right')}
-            className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-[#0b0f1a]/90 p-2 text-white/70 shadow-lg backdrop-blur-sm transition-all hover:text-white hover:bg-[#0b0f1a] md:flex"
-          >
-            <ChevronRight className="h-5 w-5" />
+          <button onClick={() => scroll('right')}
+            className="absolute right-0 top-0 bottom-0 z-10 hidden w-12 items-center justify-center bg-gradient-to-l from-[#0a0e1a] to-transparent lg:flex">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/50 shadow-lg backdrop-blur-sm transition-all hover:bg-white/10 hover:text-white">
+              <ChevronRight className="h-4 w-4" />
+            </div>
           </button>
         )}
 
-        {/* Scroll container */}
-        <div
-          ref={scrollRef}
-          className="flex gap-4 overflow-x-auto px-4 pb-2 no-scrollbar md:px-6"
-        >
-          {liveStreams.map((stream) => (
-            <button
-              key={stream.id}
-              onClick={() => {
-                setSelectedStream(stream as any)
-                setCurrentView('player')
-              }}
-              className="glass-card glass-card-hover group/card flex-shrink-0 w-[280px] sm:w-[320px] md:w-[360px] overflow-hidden text-left transition-all duration-200 touch-active"
-            >
-              {/* Thumbnail */}
-              <div className="relative h-44 sm:h-48 overflow-hidden">
-                <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover/card:scale-105"
-                  style={{
-                    backgroundImage: stream.thumbnail
-                      ? `url(${stream.thumbnail})`
-                      : `url(${THUMBNAILS[stream.title] || ''})`,
-                    backgroundColor: stream.thumbnail || THUMBNAILS[stream.title] ? undefined : 'linear-gradient(135deg, #1a2235, #243049)',
-                  }}
-                >
-                  {!stream.thumbnail && !THUMBNAILS[stream.title] && (
-                    <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-30">
-                      {CATEGORY_ICONS[stream.category] || '⚽'}
-                    </div>
-                  )}
-                </div>
+        {/* Cards */}
+        <div ref={scrollRef} className="flex gap-3.5 overflow-x-auto no-scrollbar pb-1">
+          {liveStreams.map((stream) => {
+            const thumb = stream.thumbnail || THUMBNAILS[stream.title]
+            const league = LEAGUE_MAP[stream.title] || stream.category
+            return (
+              <button
+                key={stream.id}
+                onClick={() => { setSelectedStream(stream as any); setCurrentView('player') }}
+                className="group/card flex-shrink-0 w-[280px] xl:w-[300px] overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] text-left transition-all duration-200 hover:border-white/[0.1] hover:bg-white/[0.04] active:scale-[0.98] touch-active"
+              >
+                {/* Thumbnail */}
+                <div className="relative h-[155px] overflow-hidden">
+                  <div
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover/card:scale-105"
+                    style={{
+                      backgroundImage: thumb ? `url(${thumb})` : undefined,
+                      backgroundColor: thumb ? undefined : 'linear-gradient(135deg, #111827, #1a2235)',
+                    }}
+                  >
+                    {!thumb && (
+                      <div className="absolute inset-0 flex items-center justify-center text-4xl opacity-20">
+                        {CATEGORY_ICONS[stream.category] || '⚽'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
 
-                {/* Overlays */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  {/* Live badge */}
+                  <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-md bg-[#ff3b3b] px-2 py-0.5 text-[10px] font-bold text-white shadow-lg">
+                    <span className="h-1.5 w-1.5 rounded-full bg-white live-pulse" />
+                    LIVE
+                  </div>
 
-                {/* Live badge */}
-                <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-lg bg-[#ff3b3b] px-2.5 py-1 text-xs font-bold text-white shadow-lg">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white live-pulse" />
-                  LIVE
-                </div>
+                  {/* Viewer count */}
+                  <div className="absolute right-3 top-3 flex items-center gap-1 rounded-md bg-black/50 px-2 py-0.5 text-[10px] text-white/70 backdrop-blur-sm">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#00ff88]" />
+                    {(stream.viewerCount / 1000).toFixed(1)}K
+                  </div>
 
-                {/* Viewer count */}
-                <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-lg bg-black/50 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#00ff88]" />
-                  {formatViewers(stream.viewerCount)} watching
-                </div>
-
-                {/* Score */}
-                <div className="absolute bottom-3 left-3 right-3">
-                  <div className="flex items-center justify-between text-white">
-                    <div className="flex flex-col items-center gap-1 flex-1">
-                      <span className="text-xs font-medium text-white/60 truncate max-w-[120px]">{stream.homeTeam}</span>
-                      <span className="text-2xl font-bold">{stream.homeScore}</span>
-                    </div>
-                    <div className="flex flex-col items-center px-3">
-                      <span className="text-xs font-medium text-[#00ff88]">{stream.matchTime || 'LIVE'}</span>
-                      <span className="text-xs text-white/40">VS</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1 flex-1">
-                      <span className="text-xs font-medium text-white/60 truncate max-w-[120px]">{stream.awayTeam}</span>
-                      <span className="text-2xl font-bold">{stream.awayScore}</span>
+                  {/* Score overlay */}
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <p className="text-[10px] font-medium text-white/50 mb-1.5">{league}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold text-white/60">
+                          {stream.homeTeam[0]}
+                        </div>
+                        <span className="text-[11px] font-medium text-white truncate">{stream.homeTeam}</span>
+                      </div>
+                      <div className="flex items-center gap-2 px-2">
+                        <span className="text-lg font-bold text-white tabular-nums">{stream.homeScore}</span>
+                        <span className="text-[10px] text-[#00ff88] font-medium">{stream.matchTime || 'LIVE'}</span>
+                        <span className="text-lg font-bold text-white tabular-nums">{stream.awayScore}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                        <span className="text-[11px] font-medium text-white truncate">{stream.awayTeam}</span>
+                        <div className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold text-white/60">
+                          {stream.awayTeam[0]}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Bottom info */}
-              <div className="p-3">
-                <p className="text-sm font-medium text-white/90 truncate">{stream.title}</p>
-              </div>
-            </button>
-          ))}
+              </button>
+            )
+          })}
         </div>
       </div>
     </section>
