@@ -7,6 +7,7 @@ import {
   Radio,
   Tv,
   CalendarClock,
+  Calendar,
   KeyRound,
   Video,
   Film,
@@ -2328,11 +2329,11 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            {/* Right: Time + Notifications + Profile */}
-            <div className="flex items-center gap-2 lg:gap-4">
+            {/* Right: Date + Time only — clean minimal */}
+            <div className="flex items-center gap-2 lg:gap-3">
               {/* Date (desktop only) */}
-              <span className="hidden xl:flex items-center gap-1.5 text-xs text-white/30">
-                <Clock className="h-3 w-3" />
+              <span className="hidden md:flex items-center gap-1.5 text-xs text-white/30">
+                <Calendar className="h-3 w-3" />
                 {currentDate}
               </span>
 
@@ -2340,30 +2341,6 @@ export default function AdminPanel() {
               <div className="flex items-center gap-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] px-2.5 py-1.5">
                 <Clock className="h-3 w-3 text-white/30" />
                 <span className="text-xs font-mono font-medium text-white/60 tabular-nums">{currentTime}</span>
-              </div>
-
-              {/* Notification Bell */}
-              <button className="relative flex h-9 w-9 items-center justify-center rounded-xl text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white touch-active">
-                <Bell className="h-[18px] w-[18px]" />
-                {notificationCount > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#ef4444] text-[9px] font-bold text-white ring-2 ring-[#0d1117]">
-                    {notificationCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Admin Profile */}
-              <div className="flex items-center gap-2 ml-1">
-                <div className="relative">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] text-[11px] font-bold text-white ring-2 ring-[#8b5cf6]/30">
-                    SA
-                  </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0d1117] bg-[#10b981]" />
-                </div>
-                <div className="hidden sm:flex flex-col">
-                  <span className="text-xs font-semibold text-white">Super Admin</span>
-                  <span className="text-[10px] text-white/30">admin@sportix.io</span>
-                </div>
               </div>
             </div>
           </div>
