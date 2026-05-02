@@ -8,7 +8,6 @@ import {
   Users,
   Radio,
   Video,
-  Film,
   AlertTriangle,
   FolderOpen,
   CalendarClock,
@@ -81,11 +80,10 @@ const C = {
 
 type AdminPage =
   | 'dashboard'
+  | 'live-control'
   | 'live-monitor'
   | 'users'
-  | 'all-streams'
   | 'videos'
-  | 'reels'
   | 'highlights'
   | 'reports'
   | 'categories'
@@ -106,15 +104,16 @@ interface MenuSection {
 }
 
 const menuSections: MenuSection[] = [
-  { label: null, items: [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }] },
+  { label: null, items: [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'live-control', label: 'Live Control', icon: Radio, badge: 'LIVE' },
+  ] },
   {
     label: 'MONITORING',
     items: [
-      { id: 'live-monitor', label: 'Live Monitor', icon: Activity, badge: 'LIVE' },
+      { id: 'live-monitor', label: 'Live Monitor', icon: Activity },
       { id: 'users', label: 'Users', icon: Users },
-      { id: 'all-streams', label: 'All Streams', icon: Radio },
       { id: 'videos', label: 'Videos', icon: Video },
-      { id: 'reels', label: 'Reels', icon: Film },
       { id: 'highlights', label: 'Highlights', icon: Zap },
       { id: 'reports', label: 'Reports', icon: FileText, badge: '12' },
     ],
@@ -814,9 +813,8 @@ function renderPage(page: AdminPage): React.ReactNode {
   if (page === 'revenue') return <GenericPage title="Revenue" subtitle="Financial overview" icon={<DollarSign className="h-5 w-5" style={{ color: C.success }} />} accent={C.success} />
   if (page === 'settings') return <SettingsPage />
   if (page === 'users') return <GenericPage title="Users" subtitle="Manage platform users" icon={<Users className="h-5 w-5" style={{ color: C.purple }} />} accent={C.purple} />
-  if (page === 'all-streams') return <GenericPage title="All Streams" subtitle="Manage all streams" icon={<Radio className="h-5 w-5" style={{ color: C.accent }} />} accent={C.accent} />
+  if (page === 'live-control') return <GenericPage title="Live Control" subtitle="Manage live streams" icon={<Radio className="h-5 w-5" style={{ color: C.accent }} />} accent={C.accent} />
   if (page === 'videos') return <GenericPage title="Videos" subtitle="Video content library" icon={<Video className="h-5 w-5" style={{ color: C.info }} />} accent={C.info} />
-  if (page === 'reels') return <GenericPage title="Reels" subtitle="Short-form content" icon={<Film className="h-5 w-5" style={{ color: C.warning }} />} accent={C.warning} />
   if (page === 'highlights') return <GenericPage title="Highlights" subtitle="Match highlights" icon={<Zap className="h-5 w-5" style={{ color: C.accent }} />} accent={C.accent} />
   if (page === 'reports') return <GenericPage title="Reports" subtitle="User reports moderation" icon={<AlertTriangle className="h-5 w-5" style={{ color: C.accent }} />} accent={C.accent} />
   if (page === 'categories') return <GenericPage title="Categories" subtitle="Content categories" icon={<FolderOpen className="h-5 w-5" style={{ color: C.purple }} />} accent={C.purple} />
