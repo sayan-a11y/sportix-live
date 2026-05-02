@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Stream {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  thumbnail   String?
+  category    String   @default("football")
+  status      String   @default("offline")
+  rtmpUrl     String?
+  streamKey   String?
+  viewerCount Int      @default(0)
+  peakViewers Int      @default(0)
+  fps         Float?
+  bitrate     Float?
+  isFeatured  Boolean  @default(false)
+  homeTeam    String
+  awayTeam    String
+  homeScore   Int      @default(0)
+  awayScore   Int      @default(0)
+  matchTime   String?
+  startTime   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  chatMessages ChatMessage[]
+  videos      Video[]
+}
+
+model Video {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  thumbnail   String?
+  duration    Int      @default(0)
+  category    String   @default("highlights")
+  views       Int      @default(0)
+  videoUrl    String?
+  isFeatured  Boolean  @default(false)
+  streamId    String?
+  stream      Stream?  @relation(fields: [streamId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ChatMessage {
+  id           String   @id @default(cuid())
+  streamId     String
+  stream       Stream   @relation(fields: [streamId], references: [id])
+  username     String
+  message      String
+  isHighlighted Boolean @default(false)
+  isAdmin      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model ContinueWatching {
+  id        String   @id @default(cuid())
+  videoId   String
+  title     String
+  thumbnail String?
+  duration  Int      @default(0)
+  progress  Float    @default(0)
+  watchedAt DateTime @default(now())
+}
