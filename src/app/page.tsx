@@ -882,8 +882,20 @@ export default function Home() {
         fetch('/api/streams'),
         fetch('/api/videos'),
       ])
-      const streamsData = await streamsRes.json()
-      const videosData = await videosRes.json()
+      
+      let streamsData: StreamData[] = []
+      let videosData: VideoData[] = []
+
+      if (streamsRes.ok) {
+        const data = await streamsRes.json()
+        if (Array.isArray(data)) streamsData = data
+      }
+
+      if (videosRes.ok) {
+        const data = await videosRes.json()
+        if (Array.isArray(data)) videosData = data
+      }
+
       setStreams(streamsData)
       setVideos(videosData)
 
