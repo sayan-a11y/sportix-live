@@ -76,9 +76,11 @@ Work Log:
 - Provided instructions to add `https://wjflcksiqjcmutvxkrxn.supabase.co/auth/v1/callback` to Google Authorized redirect URIs
 - Verified Supabase "Redirect URLs" configuration requirements for development and production origins
 - Confirmed callback route at `/auth/callback` is correctly exchanging codes for sessions
+- Configured Google OAuth Client ID and Secret in `.env` for reference and future use
 
 Stage Summary:
 - Root cause identified: External configuration mismatch in Google Cloud Console
 - Resolution steps provided for Google and Supabase dashboards
 - Code verified as correct; no internal changes required to fix mismatch
+- Credentials stored in `.env` for configuration reference
 ---
