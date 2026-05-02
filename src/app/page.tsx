@@ -734,6 +734,42 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
   const [authPage, setAuthPage] = useState<'login' | 'signup'>('login')
 
+  // Heartbeat: keep user marked as online while they're active
+  useEffect(() => {
+    if (!session?.user) return
+    const userId = (session.user as any).id
+    if (!userId) return
+
+    const sendHeartbeat = () => {
+      fetch('/api/users/track', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      }).catch(() => {})
+    }
+
+    // Send immediately
+    sendHeartbeat()
+    // Then every 60 seconds
+    const interval = setInterval(sendHeartbeat, 60000)
+
+    // Mark as offline when tab closes
+    const handleUnload = () => {
+      fetch('/api/users/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, action: 'logout' }),
+      }).catch(() => {})
+    }
+    window.addEventListener('beforeunload', handleUnload)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('beforeunload', handleUnload)
+      handleUnload()
+    }
+  }, [session])
+
   if (status === 'loading') {
     return (
       <div className="fixed inset-0 flex items-center justify-center" style={{ background: '#0B0F14' }}>

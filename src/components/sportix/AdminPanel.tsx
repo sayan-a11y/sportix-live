@@ -120,7 +120,7 @@ const menuSections: MenuSection[] = [
     label: 'MONITORING',
     items: [
       { id: 'live-monitor', label: 'Live Monitor', icon: Activity },
-      { id: 'users', label: 'Users', icon: Users },
+      { id: 'users', label: 'Online Users', icon: Users, badge: 'TRACK' },
       { id: 'videos', label: 'Videos', icon: Video },
       { id: 'highlights', label: 'Highlights', icon: Zap },
       { id: 'reports', label: 'Reports', icon: FileText, badge: '12' },
@@ -1312,6 +1312,331 @@ function LiveControlPage() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   ONLINE USERS PAGE (Real-time user tracking)
+   ═══════════════════════════════════════════════════════════════ */
+
+interface TrackedUser {
+  id: string
+  name: string
+  email: string
+  image: string | null
+  role: string
+  isOnline: boolean
+  lastSeen: string
+  loginCount: number
+  createdAt: string
+}
+
+function OnlineUsersPage() {
+  const [users, setUsers] = useState<TrackedUser[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/users/admin')
+      const data = await res.json()
+      setUsers(data)
+    } catch (err) {
+      console.error('Failed to fetch users:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchUsers()
+    const interval = setInterval(fetchUsers, 5000) // Poll every 5s
+    return () => clearInterval(interval)
+  }, [fetchUsers])
+
+  // Socket.io for real-time updates
+  useEffect(() => {
+    const socket = socketIo('/?XTransformPort=3005', {
+      transports: ['websocket', 'polling'],
+    })
+
+    socket.on('user-login', (data: { userId: string; name: string; timestamp: string }) => {
+      setUsers(prev => prev.map(u =>
+        u.id === data.userId ? { ...u, isOnline: true, lastSeen: data.timestamp } : u
+      ))
+    })
+
+    socket.on('user-logout', (data: { userId: string; name: string; timestamp: string }) => {
+      setUsers(prev => prev.map(u =>
+        u.id === data.userId ? { ...u, isOnline: false, lastSeen: data.timestamp } : u
+      ))
+    })
+
+    return () => { socket.disconnect() }
+  }, [])
+
+  const onlineCount = users.filter(u => u.isOnline).length
+  const offlineCount = users.length - onlineCount
+
+  const filteredUsers = users.filter(u => {
+    const matchesFilter = filter === 'all' || (filter === 'online' && u.isOnline) || (filter === 'offline' && !u.isOnline)
+    const matchesSearch = !searchQuery || u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
+
+  function formatTimeAgo(dateStr: string): string {
+    const now = new Date()
+    const date = new Date(dateStr)
+    const diffMs = now.getTime() - date.getTime()
+    const diffSec = Math.floor(diffMs / 1000)
+    if (diffSec < 60) return 'Just now'
+    const diffMin = Math.floor(diffSec / 60)
+    if (diffMin < 60) return `${diffMin}m ago`
+    const diffHr = Math.floor(diffMin / 60)
+    if (diffHr < 24) return `${diffHr}h ago`
+    const diffDay = Math.floor(diffHr / 24)
+    return `${diffDay}d ago`
+  }
+
+  function formatDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
+  function getInitials(name: string): string {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  }
+
+  const avatarColors = ['#e63946', '#9b59b6', '#3498db', '#2ecc71', '#f39c12', '#e91e63', '#00bcd4', '#ff5722']
+
+  if (loading) {
+    return (
+      <div className="space-y-5 fade-in-up">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${C.purple}15` }}>
+            <Users className="h-5 w-5" style={{ color: C.purple }} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Online Users</h2>
+            <p className="text-xs" style={{ color: C.textTer }}>Real-time user tracking</p>
+          </div>
+        </div>
+        <Card>
+          <div className="flex items-center justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-[#2ecc71]" />
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5 fade-in-up">
+      {/* Page Header */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${C.purple}15` }}>
+          <Users className="h-5 w-5" style={{ color: C.purple }} />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-white">Online Users</h2>
+          <p className="text-xs" style={{ color: C.textTer }}>Real-time user tracking • Auto-refresh every 5s</p>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: C.textDim }}>Total Users</span>
+            <Users className="h-4 w-4" style={{ color: C.purple }} />
+          </div>
+          <p className="text-2xl font-bold text-white">{users.length}</p>
+        </Card>
+        <Card>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: C.textDim }}>Online Now</span>
+            <div className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-green-500" /></div>
+          </div>
+          <p className="text-2xl font-bold" style={{ color: C.success }}>{onlineCount}</p>
+        </Card>
+        <Card>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: C.textDim }}>Offline</span>
+            <div className="h-3 w-3 rounded-full" style={{ background: C.textDim }} />
+          </div>
+          <p className="text-2xl font-bold" style={{ color: C.textTer }}>{offlineCount}</p>
+        </Card>
+        <Card>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: C.textDim }}>Total Logins</span>
+            <Activity className="h-4 w-4" style={{ color: C.info }} />
+          </div>
+          <p className="text-2xl font-bold text-white">{users.reduce((sum, u) => sum + u.loginCount, 0)}</p>
+        </Card>
+      </div>
+
+      {/* Action Bar */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1 max-w-sm">
+          <div className="flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: C.border, background: 'rgba(255,255,255,0.02)' }}>
+            <Search className="h-4 w-4" style={{ color: C.textDim }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search users by name or email..."
+              className="flex-1 bg-transparent text-sm text-white placeholder:text-white/20 focus:outline-none"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {(['all', 'online', 'offline'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12px] font-medium border transition-all"
+              style={{
+                borderColor: filter === f ? (f === 'online' ? `${C.success}40` : f === 'offline' ? `${C.textDim}40` : `${C.accent}40`) : C.border,
+                background: filter === f ? (f === 'online' ? `${C.success}10` : f === 'offline' ? `${C.textDim}10` : `${C.accent}10`) : 'transparent',
+                color: filter === f ? (f === 'online' ? C.success : f === 'offline' ? C.textSec : C.accent) : C.textTer,
+              }}
+            >
+              {f === 'online' && <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: C.success }} />}
+              {f === 'all' && `All (${users.length})`}
+              {f === 'online' && `Online (${onlineCount})`}
+              {f === 'offline' && `Offline (${offlineCount})`}
+            </button>
+          ))}
+          <button
+            onClick={fetchUsers}
+            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[12px] font-medium border transition-all hover:bg-white/[0.03]"
+            style={{ borderColor: C.border, color: C.textSec }}
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Users Table */}
+      <Card className="!p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b" style={{ borderColor: C.border, background: 'rgba(255,255,255,0.02)' }}>
+                {['User', 'Status', 'Last Seen', 'Logins', 'Joined', 'Actions'].map((h) => (
+                  <th key={h} className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: C.textDim }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center">
+                    <Users className="h-8 w-8 mx-auto mb-2" style={{ color: C.textDim }} />
+                    <p className="text-sm" style={{ color: C.textTer }}>No users found</p>
+                  </td>
+                </tr>
+              )}
+              {filteredUsers.map((user, i) => (
+                <tr key={user.id} className="border-b transition-colors hover:bg-white/[0.02]" style={{ borderColor: C.border }}>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex-shrink-0">
+                        <div
+                          className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                          style={{ background: avatarColors[i % avatarColors.length] + '30', color: avatarColors[i % avatarColors.length] }}
+                        >
+                          {getInitials(user.name)}
+                        </div>
+                        {user.isOnline && (
+                          <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2" style={{ background: C.success, borderColor: C.card }} />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-medium text-white truncate">{user.name}</p>
+                        <p className="text-[10px] truncate" style={{ color: C.textTer }}>{user.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3">
+                    {user.isOnline ? (
+                      <StatusBadge text="Online" color={C.success} />
+                    ) : (
+                      <StatusBadge text="Offline" color={C.textDim} />
+                    )}
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="text-[11px]" style={{ color: user.isOnline ? C.success : C.textTer }}>
+                      {user.isOnline ? 'Active now' : formatTimeAgo(user.lastSeen)}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="text-[12px] font-medium text-white">{user.loginCount}</span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="text-[11px]" style={{ color: C.textTer }}>{formatDate(user.createdAt)}</span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <button className="rounded-lg p-1.5 transition-colors hover:bg-white/[0.05]" style={{ color: C.textTer }} title="View Details">
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                      <button className="rounded-lg p-1.5 transition-colors hover:bg-white/[0.05]" style={{ color: C.textTer }} title="Copy Email">
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-t" style={{ borderColor: C.border }}>
+          <span className="text-[11px]" style={{ color: C.textTer }}>
+            Showing {filteredUsers.length} of {users.length} users
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px]" style={{ color: C.textDim }}>
+              Auto-refresh: <span className="text-green-400">● Active</span>
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Online Users Activity Feed */}
+      {onlineCount > 0 && (
+        <Card>
+          <CardHeader title="Currently Online">
+            <StatusBadge text={`${onlineCount} active`} color={C.success} />
+          </CardHeader>
+          <div className="space-y-0 overflow-y-auto max-h-[320px] no-scrollbar">
+            {users.filter(u => u.isOnline).map((user, i) => (
+              <div key={user.id} className="flex items-center gap-3 py-3 border-b last:border-0" style={{ borderColor: C.border }}>
+                <div className="relative flex-shrink-0">
+                  <div
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold"
+                    style={{ background: avatarColors[i % avatarColors.length] + '30', color: avatarColors[i % avatarColors.length] }}
+                  >
+                    {getInitials(user.name)}
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 animate-pulse" style={{ background: C.success, borderColor: C.card }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-white truncate">{user.name}</p>
+                  <p className="text-[10px] truncate" style={{ color: C.textTer }}>{user.email}</p>
+                </div>
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${C.success}15`, color: C.success }}>
+                    {user.loginCount} logins
+                  </span>
+                  <StatusBadge text="Online" color={C.success} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
    PAGE ROUTER
    ═══════════════════════════════════════════════════════════════ */
 
@@ -1321,7 +1646,7 @@ function renderPage(page: AdminPage): React.ReactNode {
   if (page === 'analytics' || page === 'engagement') return <AnalyticsPage />
   if (page === 'revenue') return <GenericPage title="Revenue" subtitle="Financial overview" icon={<DollarSign className="h-5 w-5" style={{ color: C.success }} />} accent={C.success} />
   if (page === 'settings') return <SettingsPage />
-  if (page === 'users') return <GenericPage title="Users" subtitle="Manage platform users" icon={<Users className="h-5 w-5" style={{ color: C.purple }} />} accent={C.purple} />
+  if (page === 'users') return <OnlineUsersPage />
   if (page === 'live-control') return <LiveControlPage />
   if (page === 'videos') return <GenericPage title="Videos" subtitle="Video content library" icon={<Video className="h-5 w-5" style={{ color: C.info }} />} accent={C.info} />
   if (page === 'highlights') return <GenericPage title="Highlights" subtitle="Match highlights" icon={<Zap className="h-5 w-5" style={{ color: C.accent }} />} accent={C.accent} />

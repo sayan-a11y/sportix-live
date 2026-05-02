@@ -29,6 +29,16 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // Mark user as online and update login count
+        await db.user.update({
+          where: { id: user.id },
+          data: {
+            isOnline: true,
+            lastSeen: new Date(),
+            loginCount: { increment: 1 },
+          },
+        })
+
         return {
           id: user.id,
           name: user.name,
@@ -57,6 +67,32 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).role = token.role
       }
       return session
+    },
+    async signIn({ user }) {
+      if (user?.id) {
+        // Emit socket event via fetch to notify admin
+        fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/users/track`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, action: 'login', name: user.name }),
+        }).catch(() => {})
+      }
+      return true
+    },
+  },
+  events: {
+    async signOut({ token }) {
+      if (token?.id) {
+        await db.user.update({
+          where: { id: token.id as string },
+          data: { isOnline: false, lastSeen: new Date() },
+        }).catch(() => {})
+        fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/users/track`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: token.id, action: 'logout', name: token.name }),
+        }).catch(() => {})
+      }
     },
   },
   pages: {
