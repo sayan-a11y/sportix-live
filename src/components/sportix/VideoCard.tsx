@@ -55,7 +55,7 @@ function formatViews(views: number): string {
 }
 
 export function VideoCard({ video, onSelect }: { video: VideoItem; onSelect: (v: VideoItem) => void }) {
-  const thumbnail = video.thumbnail || VIDEO_THUMBNAILS[video.title]
+  const thumbnail = video.thumbnail || VIDEO_THUMBNAILS[video.title] || ''
   const sport = SPORT_LABELS[video.category] || SPORT_LABELS.highlights
 
   return (
@@ -65,17 +65,19 @@ export function VideoCard({ video, onSelect }: { video: VideoItem; onSelect: (v:
     >
       {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover/card:scale-105"
-          style={{
-            backgroundImage: thumbnail ? `url(${thumbnail})` : undefined,
-            backgroundColor: thumbnail ? undefined : 'linear-gradient(135deg, #111827, #1a2235)',
-          }}
-        >
-          {!thumbnail && (
-            <div className="absolute inset-0 flex items-center justify-center text-3xl opacity-20">🎬</div>
-          )}
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1a2235]" />
+        {thumbnail && (
+          <img
+            src={thumbnail}
+            alt={video.title}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-105"
+            loading="lazy"
+            draggable={false}
+          />
+        )}
+        {!thumbnail && (
+          <div className="absolute inset-0 flex items-center justify-center text-3xl opacity-20">🎬</div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
         {/* Play overlay */}
@@ -118,13 +120,16 @@ export function ContinueCard({ item, onSelect }: { item: ContinueItem; onSelect:
       className="group/card overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] text-left transition-all duration-200 hover:border-white/[0.1] hover:bg-white/[0.04] active:scale-[0.98] touch-active w-full"
     >
       <div className="relative aspect-video overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: item.thumbnail ? `url(${item.thumbnail})` : undefined,
-            backgroundColor: item.thumbnail ? undefined : 'linear-gradient(135deg, #111827, #1a2235)',
-          }}
-        />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1a2235]" />
+        {item.thumbnail && (
+          <img
+            src={item.thumbnail}
+            alt={item.title}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            draggable={false}
+          />
+        )}
         <div className="absolute inset-0 bg-black/40" />
         {/* Progress bar */}
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">

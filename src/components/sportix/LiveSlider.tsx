@@ -40,6 +40,11 @@ const THUMBNAILS: Record<string, string> = {
   'NBA Playoffs — Game 5': '/thumbnails/nba-playoffs.png',
   'La Liga — El Clásico': '/thumbnails/el-clasico.png',
   'Formula 1 — Monaco Grand Prix': '/thumbnails/f1-monaco.png',
+  'Tennis — Wimbledon Final': '/thumbnails/wimbledon.png',
+}
+
+function getThumbnail(stream: StreamItem): string {
+  return stream.thumbnail || THUMBNAILS[stream.title] || ''
 }
 
 export default function LiveSlider({ streams }: { streams: StreamItem[] }) {
@@ -61,7 +66,11 @@ export default function LiveSlider({ streams }: { streams: StreamItem[] }) {
     checkScroll()
     const el = scrollRef.current
     el?.addEventListener('scroll', checkScroll, { passive: true })
-    return () => el?.removeEventListener('scroll', checkScroll)
+    window.addEventListener('resize', checkScroll)
+    return () => {
+      el?.removeEventListener('scroll', checkScroll)
+      window.removeEventListener('resize', checkScroll)
+    }
   }, [liveStreams])
 
   const scroll = (dir: 'left' | 'right') => {
@@ -73,29 +82,12 @@ export default function LiveSlider({ streams }: { streams: StreamItem[] }) {
   if (liveStreams.length === 0) return null
 
   return (
-    <section className="relative">
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ff3b3b] opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#ff3b3b]" />
-          </span>
-          <h2 className="text-[15px] font-bold text-white">Live Now</h2>
-          <span className="rounded-full bg-[#ff3b3b]/10 px-2 py-0.5 text-[10px] font-bold text-[#ff3b3b]">
-            {liveStreams.length} LIVE
-          </span>
-        </div>
-        <button className="flex items-center gap-1 text-[12px] font-medium text-[#00ff88] transition-colors hover:text-[#00dd75]">
-          View All Live <ArrowRight className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
+    <div className="relative">
       <div className="group relative">
-        {/* Scroll buttons */}
+        {/* Scroll buttons — desktop */}
         {canScrollLeft && (
           <button onClick={() => scroll('left')}
-            className="absolute left-0 top-0 bottom-0 z-10 hidden w-12 items-center justify-center bg-gradient-to-r from-[#0a0e1a] to-transparent lg:flex">
+            className="absolute left-0 top-0 bottom-0 z-10 hidden items-center justify-center bg-gradient-to-r from-[#0a0e1a] via-[#0a0e1a]/80 to-transparent lg:flex">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/50 shadow-lg backdrop-blur-sm transition-all hover:bg-white/10 hover:text-white">
               <ChevronLeft className="h-4 w-4" />
             </div>
@@ -103,7 +95,7 @@ export default function LiveSlider({ streams }: { streams: StreamItem[] }) {
         )}
         {canScrollRight && (
           <button onClick={() => scroll('right')}
-            className="absolute right-0 top-0 bottom-0 z-10 hidden w-12 items-center justify-center bg-gradient-to-l from-[#0a0e1a] to-transparent lg:flex">
+            className="absolute right-0 top-0 bottom-0 z-10 hidden items-center justify-center bg-gradient-to-l from-[#0a0e1a] via-[#0a0e1a]/80 to-transparent lg:flex">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/50 shadow-lg backdrop-blur-sm transition-all hover:bg-white/10 hover:text-white">
               <ChevronRight className="h-4 w-4" />
             </div>
@@ -113,30 +105,39 @@ export default function LiveSlider({ streams }: { streams: StreamItem[] }) {
         {/* Cards */}
         <div ref={scrollRef} className="flex gap-3.5 overflow-x-auto no-scrollbar pb-1">
           {liveStreams.map((stream) => {
-            const thumb = stream.thumbnail || THUMBNAILS[stream.title]
+            const thumb = getThumbnail(stream)
             const league = LEAGUE_MAP[stream.title] || stream.category
             return (
               <button
                 key={stream.id}
                 onClick={() => { setSelectedStream(stream as any); setCurrentView('player') }}
-                className="group/card flex-shrink-0 w-[280px] xl:w-[300px] overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] text-left transition-all duration-200 hover:border-white/[0.1] hover:bg-white/[0.04] active:scale-[0.98] touch-active"
+                className="group/card flex-shrink-0 w-[260px] sm:w-[280px] xl:w-[300px] overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] text-left transition-all duration-200 hover:border-white/[0.1] hover:bg-white/[0.04] active:scale-[0.98] touch-active"
               >
                 {/* Thumbnail */}
-                <div className="relative h-[155px] overflow-hidden">
-                  <div
-                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover/card:scale-105"
-                    style={{
-                      backgroundImage: thumb ? `url(${thumb})` : undefined,
-                      backgroundColor: thumb ? undefined : 'linear-gradient(135deg, #111827, #1a2235)',
-                    }}
-                  >
-                    {!thumb && (
-                      <div className="absolute inset-0 flex items-center justify-center text-4xl opacity-20">
-                        {CATEGORY_ICONS[stream.category] || '⚽'}
-                      </div>
-                    )}
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                <div className="relative h-[150px] sm:h-[155px] overflow-hidden">
+                  {/* Gradient fallback background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1a2235]" />
+
+                  {/* Actual image */}
+                  {thumb && (
+                    <img
+                      src={thumb}
+                      alt={`${stream.homeTeam} vs ${stream.awayTeam}`}
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-105"
+                      loading="eager"
+                      draggable={false}
+                    />
+                  )}
+
+                  {/* Category icon fallback when no image */}
+                  {!thumb && (
+                    <div className="absolute inset-0 flex items-center justify-center text-4xl opacity-20">
+                      {CATEGORY_ICONS[stream.category] || '⚽'}
+                    </div>
+                  )}
+
+                  {/* Dark gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10" />
 
                   {/* Live badge */}
                   <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-md bg-[#ff3b3b] px-2 py-0.5 text-[10px] font-bold text-white shadow-lg">
@@ -147,7 +148,7 @@ export default function LiveSlider({ streams }: { streams: StreamItem[] }) {
                   {/* Viewer count */}
                   <div className="absolute right-3 top-3 flex items-center gap-1 rounded-md bg-black/50 px-2 py-0.5 text-[10px] text-white/70 backdrop-blur-sm">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#00ff88]" />
-                    {(stream.viewerCount / 1000).toFixed(1)}K
+                    {stream.viewerCount >= 1000 ? `${(stream.viewerCount / 1000).toFixed(1)}K` : stream.viewerCount}
                   </div>
 
                   {/* Score overlay */}
@@ -179,6 +180,6 @@ export default function LiveSlider({ streams }: { streams: StreamItem[] }) {
           })}
         </div>
       </div>
-    </section>
+    </div>
   )
 }

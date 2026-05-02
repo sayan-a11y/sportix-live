@@ -296,7 +296,7 @@ function SportsPage({ streams, videos }: { streams: StreamData[]; videos: VideoD
       {/* Live Streams for sport */}
       {filteredStreams.filter(s => s.status === 'live').length > 0 && (
         <div>
-          <h2 className="text-[15px] font-bold text-white mb-3">🔴 Live Now</h2>
+          <h2 className="text-[15px] font-bold text-white mb-3">🔴 Live Match Popular</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {filteredStreams.filter(s => s.status === 'live').map((stream) => (
               <button key={stream.id} onClick={() => openLiveStream(stream, store)} className="glass-card glass-card-hover p-4 text-left transition-all active:scale-[0.98] touch-active">
@@ -783,15 +783,15 @@ export default function Home() {
           <CategoryTabs onFilter={setActiveFilter} />
         </div>
 
-        {/* Hero Banner — mobile */}
+        {/* Hero Banner — all screens */}
         {featuredStream && <HeroBanner stream={featuredStream} />}
 
-        {/* Live Now Slider */}
+        {/* Live Match Popular Slider */}
         <section>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <Radio className="h-4 w-4 text-[#ff3b3b]" />
-              <h2 className="text-[15px] font-bold text-white">Live Now</h2>
+              <h2 className="text-[15px] font-bold text-white">Live Match Popular</h2>
               <span className="flex items-center gap-1 rounded-md bg-[#ff3b3b]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#ff3b3b]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#ff3b3b] animate-pulse" />
                 {liveStreams.length}
@@ -804,16 +804,16 @@ export default function Home() {
           <LiveSlider streams={streams} />
         </section>
 
-        {/* Continue Watching — mobile */}
+        {/* Continue Watching — all screens */}
         {continueWatching.length > 0 && (
-          <section className="fade-in-up lg:hidden">
+          <section className="fade-in-up">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <Clock className="h-4 w-4 text-[#f59e0b]" />
                 <h2 className="text-[15px] font-bold text-white">Continue Watching</h2>
               </div>
             </div>
-            <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
               {continueWatching.map((item) => (
                 <button
                   key={item.id}
@@ -826,16 +826,19 @@ export default function Home() {
                     }
                     setContinueWatching(prev => prev.filter(c => c.id !== item.id))
                   }}
-                  className="flex-shrink-0 w-[200px] overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] text-left transition-all active:scale-[0.98] touch-active"
+                  className="flex-shrink-0 w-[200px] sm:w-[220px] overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] text-left transition-all active:scale-[0.98] touch-active"
                 >
                   <div className="relative aspect-video overflow-hidden">
-                    <div
-                      className="absolute inset-0 bg-cover bg-center"
-                      style={{
-                        backgroundImage: item.thumbnail ? `url(${item.thumbnail})` : undefined,
-                        backgroundColor: item.thumbnail ? undefined : 'linear-gradient(135deg, #111827, #1a2235)',
-                      }}
-                    />
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#111827] to-[#1a2235]" />
+                    {item.thumbnail && (
+                      <img
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        loading="lazy"
+                        draggable={false}
+                      />
+                    )}
                     <div className="absolute inset-0 bg-black/30" />
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
                       <div className="h-full bg-[#00ff88]" style={{ width: `${item.progress * 100}%` }} />
