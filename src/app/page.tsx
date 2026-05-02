@@ -232,7 +232,7 @@ function PopularPage({ videos }: { videos: VideoData[] }) {
 
   return (
     <div className="space-y-6 fade-in-up p-4 lg:p-5">
-      <PageHeader title="Popular" subtitle="Trending content right now" icon={<Sparkles className="h-5 w-5" />} />
+      <PageHeader title="Sportix Live - Popular" subtitle="Trending content right now" icon={<Sparkles className="h-5 w-5" />} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {popular.map((video, i) => (
