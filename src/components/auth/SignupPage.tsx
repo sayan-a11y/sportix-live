@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Check } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -11,6 +11,7 @@ interface SignupPageProps {
 
 export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
   const router = useRouter()
+  const supabase = createClient()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -64,35 +65,28 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
     setError('')
 
     try {
-      // Register user
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.toLowerCase().trim(),
-          password,
-        }),
+      // Register user with Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email: email.toLowerCase().trim(),
+        password,
+        options: {
+          data: {
+            full_name: name.trim(),
+          },
+        },
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Registration failed')
+      if (error) {
+        setError(error.message)
         return
       }
 
-      // Auto login after signup
-      const result = await signIn('credentials', {
-        email: email.toLowerCase(),
-        password,
-        redirect: false,
-      })
-
-      if (result?.ok) {
+      if (data.session) {
+        // Logged in immediately
         router.refresh()
       } else {
-        setError('Account created! Please login.')
+        // Confirmation email sent
+        setError('Account created! Please check your email for confirmation or login.')
         onSwitchToLogin()
       }
     } catch {
@@ -100,6 +94,16 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) setError(error.message)
   }
 
   const inputStyle: React.CSSProperties = {
@@ -352,6 +356,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
           {/* Google Signup */}
           <button
             type="button"
+            onClick={handleGoogleLogin}
             className="w-full rounded-xl py-3 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2"
             style={{
               background: 'rgba(255, 255, 255, 0.05)',

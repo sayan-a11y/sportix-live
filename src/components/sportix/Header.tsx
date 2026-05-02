@@ -1,13 +1,14 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { useSession, signOut } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { Search, X, Calendar, ChevronDown, LogOut } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
 
 export default function Header() {
   const { currentView, incrementLogoClicks, resetLogoClicks } = useAppStore()
-  const { data: session } = useSession()
+  const supabase = createClient()
+  const [session, setSession] = useState<any>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -15,11 +16,24 @@ export default function Header() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
+    const getSession = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      setSession(currentSession)
+    }
+    getSession()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
     const check = () => setIsMobile(window.innerWidth < 768)
     check()
     window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+    return () => {
+      window.removeEventListener('resize', check)
+      subscription.unsubscribe()
+    }
+  }, [supabase])
 
   const handleLogoClick = useCallback(() => {
     // Block admin easter egg on mobile
@@ -44,7 +58,7 @@ export default function Header() {
   if (currentView === 'admin' || currentView === 'live-control-room') return null
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-  const userInitial = session?.user?.name?.charAt(0)?.toUpperCase() || 'U'
+  const userInitial = session?.user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || session?.user?.email?.charAt(0)?.toUpperCase() || 'U'
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-[#0a0e1a]/90 backdrop-blur-xl">
@@ -130,7 +144,7 @@ export default function Header() {
                 }}
               >
                 <div className="p-3 border-b border-white/[0.06]">
-                  <p className="text-sm font-semibold text-white truncate">{session?.user?.name || 'User'}</p>
+                  <p className="text-sm font-semibold text-white truncate">{session?.user?.user_metadata?.full_name || 'User'}</p>
                   <p className="text-xs text-white/40 truncate">{session?.user?.email || ''}</p>
                 </div>
                 <div className="p-1.5">
@@ -142,7 +156,10 @@ export default function Header() {
                     Settings
                   </button>
                   <button
-                    onClick={() => signOut({ callbackUrl: '/' })}
+                    onClick={async () => {
+                      await supabase.auth.signOut()
+                      window.location.reload()
+                    }}
                     className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#ff5252]/80 hover:bg-[#ff5252]/5 hover:text-[#ff5252] transition-all"
                   >
                     <LogOut className="h-4 w-4" />

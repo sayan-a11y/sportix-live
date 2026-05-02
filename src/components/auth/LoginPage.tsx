@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -11,6 +11,7 @@ interface LoginPageProps {
 
 export default function LoginPage({ onSwitchToSignup }: LoginPageProps) {
   const router = useRouter()
+  const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -43,15 +44,14 @@ export default function LoginPage({ onSwitchToSignup }: LoginPageProps) {
     setError('')
 
     try {
-      const result = await signIn('credentials', {
+      const { error } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase(),
         password,
-        redirect: false,
       })
 
-      if (result?.error) {
-        setError('Invalid email or password')
-      } else if (result?.ok) {
+      if (error) {
+        setError(error.message)
+      } else {
         router.refresh()
       }
     } catch {
@@ -59,6 +59,16 @@ export default function LoginPage({ onSwitchToSignup }: LoginPageProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) setError(error.message)
   }
 
   const inputStyle: React.CSSProperties = {
@@ -226,6 +236,7 @@ export default function LoginPage({ onSwitchToSignup }: LoginPageProps) {
           {/* Google Login */}
           <button
             type="button"
+            onClick={handleGoogleLogin}
             className="w-full rounded-xl py-3 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2"
             style={{
               background: 'rgba(255, 255, 255, 0.05)',

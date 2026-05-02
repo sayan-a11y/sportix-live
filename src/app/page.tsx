@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
-import { useSession, signOut } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store'
 import { io as socketIo } from 'socket.io-client'
 import Header from '@/components/sportix/Header'
@@ -31,7 +31,7 @@ interface StreamData {
   id: string; title: string; description?: string; thumbnail?: string
   category: string; status: string; viewerCount: number; peakViewers: number
   homeTeam: string; awayTeam: string; homeScore: number; awayScore: number
-  matchTime?: string; isFeatured: boolean
+  matchTime?: string; isFeatured: boolean; fps?: number
 }
 
 interface VideoData {
@@ -52,22 +52,22 @@ function formatNumber(n: number): string {
   return n.toString()
 }
 
-function openVideo(video: VideoData, store: typeof useAppStore) {
-  store.getState().setSelectedVideo(video as any)
-  store.getState().setSelectedStream({
+function openVideo(video: VideoData, store: any) {
+  store.setSelectedVideo(video as any)
+  store.setSelectedStream({
     ...video, status: 'offline', viewerCount: 0, peakViewers: 0,
     homeTeam: '', awayTeam: '', homeScore: 0, awayScore: 0, isFeatured: video.isFeatured,
   } as any)
-  store.getState().setCurrentView('player')
+  store.setCurrentView('player')
 }
 
-function openLiveStream(stream: StreamData, store: typeof useAppStore) {
-  store.getState().setSelectedStream(stream)
-  store.getState().setSelectedVideo({
+function openLiveStream(stream: StreamData, store: any) {
+  store.setSelectedStream(stream)
+  store.setSelectedVideo({
     id: stream.id, title: stream.title, duration: 0, category: stream.category,
     views: stream.viewerCount, isFeatured: stream.isFeatured,
   })
-  store.getState().setCurrentView('player')
+  store.setCurrentView('player')
 }
 
 const LEAGUES_DATA = [
@@ -531,7 +531,7 @@ function FavoritesPage({ videos }: { videos: VideoData[] }) {
           <p className="text-sm font-medium text-white/30">No favorites yet</p>
           <p className="mt-1 text-xs text-white/20">Tap the heart icon on any video to save it here</p>
           <button
-            onClick={() => store.setState(s => ({ currentView: 'highlights' }))}
+            onClick={() => useAppStore.setState({ currentView: 'highlights' })}
             className="mt-4 rounded-xl bg-[#00ff88]/10 px-4 py-2 text-xs font-medium text-[#00ff88] ring-1 ring-[#00ff88]/20"
           >
             Browse Highlights
@@ -573,7 +573,7 @@ function MyListPage({ videos }: { videos: VideoData[] }) {
           <p className="text-sm font-medium text-white/30">Your list is empty</p>
           <p className="mt-1 text-xs text-white/20">Add videos to your watchlist to watch them later</p>
           <button
-            onClick={() => store.setState(s => ({ currentView: 'highlights' }))}
+            onClick={() => useAppStore.setState({ currentView: 'highlights' })}
             className="mt-4 rounded-xl bg-[#00ff88]/10 px-4 py-2 text-xs font-medium text-[#00ff88] ring-1 ring-[#00ff88]/20"
           >
             Browse Highlights
@@ -588,6 +588,12 @@ function MyListPage({ videos }: { videos: VideoData[] }) {
 
 function SettingsPage({ session }: { session: any }) {
   const { settings, updateSettings } = useAppStore()
+  const supabase = createClient()
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    window.location.reload()
+  }
 
   const settingGroups = [
     {
@@ -621,10 +627,10 @@ function SettingsPage({ session }: { session: any }) {
       <div className="glass-card p-4">
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#00ff88] to-[#00cc6a] text-lg font-bold text-[#02040a]">
-            {session?.user?.name?.charAt(0)?.toUpperCase() || 'S'}
+            {session?.user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || session?.user?.email?.charAt(0)?.toUpperCase() || 'S'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white">{session?.user?.name || 'Sportix User'}</p>
+            <p className="text-sm font-bold text-white">{session?.user?.user_metadata?.full_name || 'Sportix User'}</p>
             <p className="text-xs text-white/40">{session?.user?.email || 'user@sportix.io'}</p>
           </div>
           <button className="rounded-xl bg-white/5 px-3 py-2 text-xs font-medium text-white/50 hover:bg-white/[0.08] transition-colors">
@@ -700,7 +706,7 @@ function SettingsPage({ session }: { session: any }) {
 
       {/* Logout Button */}
       <button
-        onClick={() => signOut({ callbackUrl: '/' })}
+        onClick={handleLogout}
         className="w-full glass-card p-4 flex items-center gap-3 transition-all hover:bg-[#ff3b3b]/5 hover:border-[#ff3b3b]/20"
         style={{ borderColor: 'rgba(255, 59, 59, 0.1)' }}
       >
@@ -773,8 +779,27 @@ function AdminLoadingFallback() {
    ═══════════════════════════════════════════════════════════════════ */
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession()
+  const [session, setSession] = useState<any>(null)
+  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
   const [authPage, setAuthPage] = useState<'login' | 'signup'>('login')
+  const supabase = createClient()
+
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session: initialSession } } = await supabase.auth.getSession()
+      setSession(initialSession)
+      setStatus(initialSession ? 'authenticated' : 'unauthenticated')
+    }
+
+    getSession()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setStatus(session ? 'authenticated' : 'unauthenticated')
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase])
 
   // Heartbeat: keep user marked as online while they're active
   useEffect(() => {
@@ -841,7 +866,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 export default function Home() {
   const { currentView, favorites, myList, toggleFavorite, toggleMyList } = useAppStore()
-  const { data: session } = useSession()
+  const supabase = createClient()
+  const [session, setSession] = useState<any>(null)
   const isMobile = useIsMobile()
   const prevIsMobileRef = useRef(false)
   const [streams, setStreams] = useState<StreamData[]>([])
@@ -879,11 +905,24 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    const getSession = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      setSession(currentSession)
+    }
+    getSession()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
     loadData()
     fetch('/api/admin/seed').catch(() => {})
     const interval = setInterval(loadData, 30000)
-    return () => clearInterval(interval)
-  }, [loadData])
+    return () => {
+      clearInterval(interval)
+      subscription.unsubscribe()
+    }
+  }, [loadData, supabase])
 
   // Real-time socket connection for live stream updates
   useEffect(() => {
