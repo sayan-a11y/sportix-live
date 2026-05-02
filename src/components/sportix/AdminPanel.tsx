@@ -48,6 +48,12 @@ import {
   Wifi,
   Zap,
   Globe,
+  Camera,
+  Mic,
+  ChevronDown,
+  Info,
+  Timer,
+  CloudUpload,
 } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════════════
@@ -803,6 +809,397 @@ function SettingsPage() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   LIVE CONTROL PAGE
+   ═══════════════════════════════════════════════════════════════ */
+
+function LiveControlPage() {
+  const [category, setCategory] = useState<'cricket' | 'football'>('cricket')
+  const [showStreamKey, setShowStreamKey] = useState(false)
+  const [copiedUrl, setCopiedUrl] = useState(false)
+  const [copiedKey, setCopiedKey] = useState(false)
+  const [matchTitle, setMatchTitle] = useState('The Ashes Day 3: England vs Australia')
+  const [description, setDescription] = useState("Live coverage of The Ashes Day 3 from Lord's Cricket Ground.")
+
+  const handleCopy = (text: string, type: 'url' | 'key') => {
+    navigator.clipboard.writeText(text)
+    if (type === 'url') { setCopiedUrl(true); setTimeout(() => setCopiedUrl(false), 2000) }
+    else { setCopiedKey(true); setTimeout(() => setCopiedKey(false), 2000) }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.03)',
+    borderColor: C.border,
+    borderRadius: 12,
+  }
+
+  return (
+    <div className="space-y-4 fade-in-up">
+      {/* ── Page Header ── */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${C.accent}15` }}>
+          <Radio className="h-5 w-5" style={{ color: C.accent }} />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-white">Live Stream Control Room</h2>
+          <p className="text-xs" style={{ color: C.textTer }}>Manage and control your live stream, settings and broadcast</p>
+        </div>
+      </div>
+
+      {/* ── 3-Column Grid ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* ═══ LEFT COLUMN ═══ */}
+        <div className="space-y-4">
+          {/* 1. Stream Preview Card */}
+          <Card>
+            <CardHeader title="Stream Preview">
+              <button className="rounded-lg p-1 transition-colors hover:bg-white/[0.05]">
+                <MoreHorizontal className="h-4 w-4" style={{ color: C.textTer }} />
+              </button>
+            </CardHeader>
+            <div className="relative rounded-xl overflow-hidden" style={{ background: C.sidebar }}>
+              <img src="/sportix/stadium-preview.png" alt="Stream preview" className="w-full h-40 object-cover opacity-60" draggable={false} />
+              {/* OFFLINE badge */}
+              <div className="absolute top-3 left-3">
+                <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold text-white" style={{ background: 'rgba(230,57,70,0.90)' }}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                  OFFLINE
+                </span>
+              </div>
+              {/* Play button */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition-transform hover:scale-110 cursor-pointer">
+                  <Play className="h-5 w-5 text-white ml-0.5" />
+                </div>
+              </div>
+            </div>
+            <div className="mt-3">
+              <p className="text-sm font-semibold text-white">Stream is currently offline</p>
+              <p className="text-[11px] mt-0.5" style={{ color: C.textTer }}>Start streaming to go live</p>
+            </div>
+            {/* Tabs row */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              {[
+                { label: 'Category', value: 'Cricket' },
+                { label: 'Resolution', value: '-' },
+                { label: 'Bitrate', value: '-' },
+                { label: 'FPS', value: '-' },
+                { label: 'Audio', value: '-' },
+              ].map((tab) => (
+                <span key={tab.label} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px]" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <span style={{ color: C.textTer }}>{tab.label}:</span>
+                  <span className="font-medium text-white">{tab.value}</span>
+                </span>
+              ))}
+            </div>
+          </Card>
+
+          {/* 2. Stream Connection Card */}
+          <Card>
+            <CardHeader title={
+              <span className="flex items-center gap-2">
+                <Wifi className="h-4 w-4" style={{ color: C.textSec }} />
+                Stream Connection
+              </span>
+            }>
+              <StatusBadge text="Ready" color={C.success} />
+            </CardHeader>
+
+            {/* Server URL */}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-medium mb-1.5" style={{ color: C.textTer }}>Server URL</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value="rtmp://live.sportixlive.com/live"
+                    className="flex-1 border px-3 py-2.5 text-sm text-white bg-transparent focus:outline-none"
+                    style={inputStyle}
+                  />
+                  <button
+                    onClick={() => handleCopy('rtmp://live.sportixlive.com/live', 'url')}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors hover:bg-white/[0.05]"
+                    style={{ borderColor: C.border }}
+                  >
+                    {copiedUrl ? <Check className="h-4 w-4" style={{ color: C.success }} /> : <Copy className="h-4 w-4" style={{ color: C.textTer }} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Stream Key */}
+              <div>
+                <label className="block text-[11px] font-medium mb-1.5" style={{ color: C.textTer }}>Stream Key</label>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type={showStreamKey ? 'text' : 'password'}
+                      readOnly
+                      value="sk-live-xxxx-xxxx-xxxx"
+                      className="w-full border px-3 py-2.5 pr-10 text-sm text-white bg-transparent focus:outline-none"
+                      style={inputStyle}
+                    />
+                    <button
+                      onClick={() => setShowStreamKey(!showStreamKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 transition-colors hover:bg-white/[0.05] rounded"
+                    >
+                      <Eye className="h-4 w-4" style={{ color: C.textTer }} />
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => handleCopy('sk-live-xxxx-xxxx-xxxx', 'key')}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors hover:bg-white/[0.05]"
+                    style={{ borderColor: C.border }}
+                  >
+                    {copiedKey ? <Check className="h-4 w-4" style={{ color: C.success }} /> : <Copy className="h-4 w-4" style={{ color: C.textTer }} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* OBS Guide */}
+              <div className="rounded-xl p-3 mt-2" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}` }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Info className="h-4 w-4" style={{ color: C.info }} />
+                  <span className="text-xs font-semibold text-white">How to connect OBS?</span>
+                </div>
+                <ol className="space-y-1.5 pl-1">
+                  {[
+                    'Open OBS Studio and go to Settings → Stream',
+                    'Select "Custom" as Service',
+                    'Paste the Server URL above',
+                    'Paste the Stream Key above',
+                    'Click "Apply" and then "OK"',
+                  ].map((step, i) => (
+                    <li key={i} className="flex items-start gap-2 text-[11px]" style={{ color: C.textTer }}>
+                      <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white mt-0.5" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                        {i + 1}
+                      </span>
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+                <button className="flex items-center gap-1.5 mt-3 rounded-xl px-4 py-2 text-[11px] font-medium transition-colors hover:bg-white/[0.05] border" style={{ borderColor: C.border, color: C.textSec }}>
+                  <Play className="h-3.5 w-3.5" /> Watch Guide
+                </button>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* ═══ MIDDLE COLUMN ═══ */}
+        <div className="space-y-4">
+          {/* 3. Start Live Stream Card */}
+          <Card>
+            <CardHeader title="Start Live Stream" />
+
+            {/* Category Selection */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setCategory('cricket')}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-white transition-all"
+                style={{ background: category === 'cricket' ? C.accent : 'rgba(255,255,255,0.05)' }}
+              >
+                <span className="text-base">🏏</span> Cricket
+              </button>
+              <button
+                onClick={() => setCategory('football')}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-white transition-all"
+                style={{ background: category === 'football' ? C.accent : 'rgba(255,255,255,0.05)' }}
+              >
+                <span className="text-base">⚽</span> Football
+              </button>
+            </div>
+
+            {/* Match Title */}
+            <div className="mb-4">
+              <label className="block text-[11px] font-medium mb-1.5" style={{ color: C.textTer }}>Match Title</label>
+              <input
+                type="text"
+                value={matchTitle}
+                onChange={(e) => setMatchTitle(e.target.value)}
+                maxLength={100}
+                className="w-full border px-3 py-2.5 text-sm text-white bg-transparent focus:outline-none focus:border-white/20 transition-colors"
+                style={inputStyle}
+              />
+              <div className="text-right mt-1">
+                <span className="text-[10px]" style={{ color: C.textDim }}>{matchTitle.length}/100</span>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="mb-4">
+              <label className="block text-[11px] font-medium mb-1.5" style={{ color: C.textTer }}>
+                Description <span className="text-[10px]" style={{ color: C.textDim }}>(Optional)</span>
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={300}
+                rows={3}
+                className="w-full border px-3 py-2.5 text-sm text-white bg-transparent focus:outline-none focus:border-white/20 transition-colors resize-none"
+                style={inputStyle}
+              />
+              <div className="text-right mt-1">
+                <span className="text-[10px]" style={{ color: C.textDim }}>{description.length}/300</span>
+              </div>
+            </div>
+
+            {/* Thumbnail Upload */}
+            <div className="mb-5">
+              <label className="block text-[11px] font-medium mb-1.5" style={{ color: C.textTer }}>
+                Thumbnail <span className="text-[10px]" style={{ color: C.textDim }}>(Optional)</span>
+              </label>
+              <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 transition-colors hover:border-white/10 cursor-pointer" style={{ borderColor: C.border, background: 'rgba(255,255,255,0.01)' }}>
+                <CloudUpload className="h-8 w-8 mb-2" style={{ color: C.textDim }} />
+                <p className="text-xs font-medium text-white">Drag & drop thumbnail here</p>
+                <p className="text-[10px] mt-0.5" style={{ color: C.textDim }}>JPG, PNG up to 5MB</p>
+                <button className="mt-3 rounded-xl border px-4 py-2 text-[11px] font-medium transition-colors hover:bg-white/[0.05]" style={{ borderColor: C.border, color: C.textSec }}>
+                  Choose File
+                </button>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <button className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-[13px] font-semibold text-white transition-all hover:opacity-90" style={{ background: C.accent }}>
+                <Radio className="h-4 w-4" /> Go Live Now
+              </button>
+              <button className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-[13px] font-medium transition-all hover:bg-white/[0.08]" style={{ background: 'rgba(255,255,255,0.05)', color: C.textSec }}>
+                <Monitor className="h-4 w-4" /> Test Stream
+              </button>
+            </div>
+          </Card>
+        </div>
+
+        {/* ═══ RIGHT COLUMN ═══ */}
+        <div className="space-y-4">
+          {/* 4. Stream Status Card */}
+          <Card>
+            <CardHeader title="Stream Status">
+              <StatusBadge text="OFFLINE" color={C.accent} />
+            </CardHeader>
+            <div className="flex flex-col items-center py-4">
+              <div className="relative flex items-center justify-center">
+                <span className="absolute h-12 w-12 rounded-full animate-ping" style={{ background: `${C.accent}20` }} />
+                <span className="relative flex h-12 w-12 items-center justify-center rounded-full" style={{ background: `${C.accent}20` }}>
+                  <span className="h-6 w-6 rounded-full" style={{ background: C.accent }} />
+                </span>
+              </div>
+              <p className="mt-3 text-sm font-bold" style={{ color: C.accent }}>OFFLINE</p>
+            </div>
+          </Card>
+
+          {/* 5. Stream Health Card */}
+          <Card>
+            <CardHeader title={
+              <span className="flex items-center gap-2">
+                <Activity className="h-4 w-4" style={{ color: C.textSec }} />
+                Stream Health
+              </span>
+            } />
+            <div className="space-y-0">
+              {[
+                { label: 'Video Resolution', value: '-' },
+                { label: 'Video Bitrate', value: '-' },
+                { label: 'Audio Bitrate', value: '-' },
+                { label: 'FPS', value: '-' },
+                { label: 'Dropped Frames', value: '-' },
+                { label: 'Status', value: 'Offline', valueColor: C.accent },
+              ].map((m, i) => (
+                <div key={m.label} className="flex items-center justify-between py-2.5 border-b last:border-0" style={{ borderColor: C.border, background: i % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent' }}>
+                  <span className="text-[11px]" style={{ color: C.textTer }}>{m.label}</span>
+                  <span className="text-[11px] font-medium" style={{ color: (m as { valueColor?: string }).valueColor || C.textSec }}>{m.value}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3">
+              <MiniSparkline data={[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]} color={C.textDim} />
+            </div>
+          </Card>
+
+          {/* 6. Live Statistics Card */}
+          <Card>
+            <CardHeader title={
+              <span className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" style={{ color: C.textSec }} />
+                Live Statistics
+              </span>
+            } />
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Duration', value: '00:00:00', icon: Timer },
+                { label: 'Viewers', value: '0', icon: Users },
+                { label: 'Peak Viewers', value: '0', icon: TrendingUp },
+                { label: 'Data Used', value: '0.00 GB', icon: HardDrive },
+              ].map((s) => {
+                const Icon = s.icon
+                return (
+                  <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}` }}>
+                    <Icon className="h-4 w-4 mx-auto mb-1.5" style={{ color: C.textDim }} />
+                    <p className="text-sm font-bold text-white">{s.value}</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: C.textDim }}>{s.label}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+
+          {/* 7. Recent Live Streams Card */}
+          <Card>
+            <CardHeader title="Recent Live Streams">
+              <button className="text-[11px] font-medium" style={{ color: C.accent }}>View All</button>
+            </CardHeader>
+            <div className="flex gap-3 rounded-xl p-2 transition-all cursor-pointer hover:bg-white/[0.03]">
+              <div className="relative h-14 w-20 flex-shrink-0 overflow-hidden rounded-lg" style={{ background: C.sidebar }}>
+                <img src="/sportix/stadium-preview.png" alt="" className="h-full w-full object-cover opacity-60" draggable={false} />
+                <div className="absolute bottom-1 right-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-mono text-white">2:15:30</div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-white line-clamp-1">IND vs PAK - T20 World Cup</p>
+                <p className="text-[10px] mt-0.5" style={{ color: C.textDim }}>Jun 12, 2024 • 02:15:30</p>
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="text-[10px]" style={{ color: C.textTer }}>12.4K Views</span>
+                  <button className="rounded-lg px-2 py-0.5 text-[10px] font-medium" style={{ background: `${C.success}15`, color: C.success }}>Replay</button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* ── BOTTOM ROW: Streaming Checklist ── */}
+      <Card>
+        <CardHeader title="Streaming Checklist" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { icon: Camera, label: 'Encoder Connected', status: 'Not Connected', color: C.accent },
+            { icon: Clock, label: 'Stream Key Valid', status: 'Pending', color: C.warning },
+            { icon: Camera, label: 'Video Input', status: 'No Signal', color: C.accent },
+            { icon: Mic, label: 'Audio Input', status: 'No Signal', color: C.accent },
+            { icon: Wifi, label: 'Internet', status: 'Good', color: C.success },
+          ].map((item) => {
+            const Icon = item.icon
+            return (
+              <div key={item.label} className="flex flex-col items-center gap-2 rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}` }}>
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: `${item.color}15` }}>
+                  <Icon className="h-4 w-4" style={{ color: item.color }} />
+                </div>
+                <p className="text-[11px] font-medium text-white">{item.label}</p>
+                <p className="text-[10px] font-medium" style={{ color: item.color }}>{item.status}</p>
+              </div>
+            )
+          })}
+        </div>
+        <div className="flex justify-end mt-4">
+          <button className="flex items-center gap-2 rounded-xl border px-4 py-2 text-[12px] font-medium transition-colors hover:bg-white/[0.05]" style={{ borderColor: C.border, color: C.textSec }}>
+            <RefreshCw className="h-3.5 w-3.5" /> Run Test
+          </button>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
    PAGE ROUTER
    ═══════════════════════════════════════════════════════════════ */
 
@@ -813,7 +1210,7 @@ function renderPage(page: AdminPage): React.ReactNode {
   if (page === 'revenue') return <GenericPage title="Revenue" subtitle="Financial overview" icon={<DollarSign className="h-5 w-5" style={{ color: C.success }} />} accent={C.success} />
   if (page === 'settings') return <SettingsPage />
   if (page === 'users') return <GenericPage title="Users" subtitle="Manage platform users" icon={<Users className="h-5 w-5" style={{ color: C.purple }} />} accent={C.purple} />
-  if (page === 'live-control') return <GenericPage title="Live Control" subtitle="Manage live streams" icon={<Radio className="h-5 w-5" style={{ color: C.accent }} />} accent={C.accent} />
+  if (page === 'live-control') return <LiveControlPage />
   if (page === 'videos') return <GenericPage title="Videos" subtitle="Video content library" icon={<Video className="h-5 w-5" style={{ color: C.info }} />} accent={C.info} />
   if (page === 'highlights') return <GenericPage title="Highlights" subtitle="Match highlights" icon={<Zap className="h-5 w-5" style={{ color: C.accent }} />} accent={C.accent} />
   if (page === 'reports') return <GenericPage title="Reports" subtitle="User reports moderation" icon={<AlertTriangle className="h-5 w-5" style={{ color: C.accent }} />} accent={C.accent} />
