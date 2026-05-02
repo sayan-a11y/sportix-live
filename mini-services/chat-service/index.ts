@@ -81,6 +81,46 @@ io.on('connection', (socket) => {
     io.to(data.streamId).emit('stream-status-update', { streamId: data.streamId, status: data.status })
   })
 
+  // Admin goes live - broadcast to ALL clients
+  socket.on('admin-go-live', (data: { streamId: string; title: string; category: string; homeTeam: string; awayTeam: string }) => {
+    io.emit('stream-went-live', {
+      streamId: data.streamId,
+      title: data.title,
+      category: data.category,
+      homeTeam: data.homeTeam,
+      awayTeam: data.awayTeam,
+      status: 'live',
+      viewerCount: 0,
+      peakViewers: 0,
+      homeScore: 0,
+      awayScore: 0,
+      matchTime: '0:00',
+      isFeatured: true,
+      timestamp: new Date().toISOString(),
+    })
+    console.log(`[LIVE] Admin started: ${data.title}`)
+  })
+
+  // Admin stops live
+  socket.on('admin-stop-live', (data: { streamId: string }) => {
+    io.emit('stream-went-offline', {
+      streamId: data.streamId,
+      timestamp: new Date().toISOString(),
+    })
+    console.log(`[OFFLINE] Stream stopped: ${data.streamId}`)
+  })
+
+  // Admin updates score
+  socket.on('admin-update-score', (data: { streamId: string; homeScore: number; awayScore: number; matchTime: string }) => {
+    io.emit('score-update', {
+      streamId: data.streamId,
+      homeScore: data.homeScore,
+      awayScore: data.awayScore,
+      matchTime: data.matchTime,
+    })
+    console.log(`[SCORE] ${data.homeScore}-${data.awayScore} (${data.matchTime})`)
+  })
+
   socket.on('disconnect', () => {
     streamRooms.forEach((users, streamId) => {
       if (users.delete(socket.id)) {

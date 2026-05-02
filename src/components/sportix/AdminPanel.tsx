@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '@/lib/store'
+import { io as socketIo } from 'socket.io-client'
 import {
   LayoutDashboard,
   Activity,
@@ -54,6 +55,7 @@ import {
   Info,
   Timer,
   CloudUpload,
+  Square,
 } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════════════
@@ -819,6 +821,94 @@ function LiveControlPage() {
   const [copiedKey, setCopiedKey] = useState(false)
   const [matchTitle, setMatchTitle] = useState('The Ashes Day 3: England vs Australia')
   const [description, setDescription] = useState("Live coverage of The Ashes Day 3 from Lord's Cricket Ground.")
+  const [isGoingLive, setIsGoingLive] = useState(false)
+  const [isLive, setIsLive] = useState(false)
+  const [liveStreamId, setLiveStreamId] = useState<string | null>(null)
+  const [liveDuration, setLiveDuration] = useState(0)
+  const [liveViewers, setLiveViewers] = useState(0)
+
+  // Live timer
+  useEffect(() => {
+    if (!isLive) return
+    const timer = setInterval(() => setLiveDuration(d => d + 1), 1000)
+    return () => clearInterval(timer)
+  }, [isLive])
+
+  function formatDuration(sec: number): string {
+    const h = Math.floor(sec / 3600)
+    const m = Math.floor((sec % 3600) / 60)
+    const s = sec % 60
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
+  const handleGoLive = async () => {
+    setIsGoingLive(true)
+    try {
+      const homeTeam = matchTitle.split(' vs ')[0]?.replace(/^.*?\s/, '') || 'Team A'
+      const awayTeam = matchTitle.split(' vs ')[1]?.split(' -')[0]?.trim() || 'Team B'
+
+      // 1. Create stream in DB via API
+      const res = await fetch('/api/admin/go-live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: matchTitle,
+          description: description,
+          category: category,
+          homeTeam,
+          awayTeam,
+        }),
+      })
+      const stream = await res.json()
+
+      // 2. Emit socket event so users see it in real-time
+      const socket = socketIo('/?XTransformPort=3005', { transports: ['websocket', 'polling'] })
+      socket.emit('admin-go-live', {
+        streamId: stream.id,
+        title: matchTitle,
+        category: category,
+        homeTeam,
+        awayTeam,
+      })
+
+      setLiveStreamId(stream.id)
+      setIsLive(true)
+
+      // Listen for viewer updates
+      socket.on('viewer-update', (data: any) => {
+        if (data.streamId === stream.id) {
+          setLiveViewers(data.count)
+        }
+      })
+
+      // Join the stream room
+      socket.emit('join-stream', stream.id)
+    } catch (err) {
+      console.error('Failed to go live:', err)
+    } finally {
+      setIsGoingLive(false)
+    }
+  }
+
+  const handleStopLive = async () => {
+    if (!liveStreamId) return
+    try {
+      await fetch('/api/admin/stop-live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ streamId: liveStreamId }),
+      })
+      const socket = socketIo('/?XTransformPort=3005', { transports: ['websocket', 'polling'] })
+      socket.emit('admin-stop-live', { streamId: liveStreamId })
+      socket.emit('leave-stream', liveStreamId)
+      setIsLive(false)
+      setLiveStreamId(null)
+      setLiveDuration(0)
+      setLiveViewers(0)
+    } catch (err) {
+      console.error('Failed to stop live:', err)
+    }
+  }
 
   const handleCopy = (text: string, type: 'url' | 'key') => {
     navigator.clipboard.writeText(text)
@@ -858,11 +948,11 @@ function LiveControlPage() {
             </CardHeader>
             <div className="relative rounded-xl overflow-hidden" style={{ background: C.sidebar }}>
               <img src="/sportix/stadium-preview.png" alt="Stream preview" className="w-full h-40 object-cover opacity-60" draggable={false} />
-              {/* OFFLINE badge */}
+              {/* Live/Offline badge */}
               <div className="absolute top-3 left-3">
-                <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold text-white" style={{ background: 'rgba(230,57,70,0.90)' }}>
+                <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold text-white ${isLive ? 'animate-pulse' : ''}`} style={{ background: isLive ? 'rgba(46,204,113,0.90)' : 'rgba(230,57,70,0.90)' }}>
                   <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                  OFFLINE
+                  {isLive ? 'LIVE' : 'OFFLINE'}
                 </span>
               </div>
               {/* Play button */}
@@ -873,8 +963,8 @@ function LiveControlPage() {
               </div>
             </div>
             <div className="mt-3">
-              <p className="text-sm font-semibold text-white">Stream is currently offline</p>
-              <p className="text-[11px] mt-0.5" style={{ color: C.textTer }}>Start streaming to go live</p>
+              <p className="text-sm font-semibold text-white">{isLive ? 'Stream is live now' : 'Stream is currently offline'}</p>
+              <p className="text-[11px] mt-0.5" style={{ color: C.textTer }}>{isLive ? `Live for ${formatDuration(liveDuration)}` : 'Start streaming to go live'}</p>
             </div>
             {/* Tabs row */}
             <div className="flex flex-wrap gap-2 mt-3">
@@ -1060,9 +1150,31 @@ function LiveControlPage() {
 
             {/* Action Buttons */}
             <div className="space-y-2">
-              <button className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-[13px] font-semibold text-white transition-all hover:opacity-90" style={{ background: C.accent }}>
-                <Radio className="h-4 w-4" /> Go Live Now
+              <button
+                onClick={handleGoLive}
+                disabled={isGoingLive || isLive}
+                className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-[13px] font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ background: isLive ? C.success : C.accent }}
+              >
+                {isGoingLive ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : isLive ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Radio className="h-4 w-4" />
+                )}
+                {isLive ? 'Live Now' : 'Go Live Now'}
               </button>
+              {isLive && (
+                <button
+                  onClick={handleStopLive}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-[13px] font-semibold text-white transition-all hover:opacity-90"
+                  style={{ background: `${C.accent}30`, color: C.accent, border: `1px solid ${C.accent}40` }}
+                >
+                  <Square className="h-4 w-4" />
+                  End Stream
+                </button>
+              )}
               <button className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-[13px] font-medium transition-all hover:bg-white/[0.08]" style={{ background: 'rgba(255,255,255,0.05)', color: C.textSec }}>
                 <Monitor className="h-4 w-4" /> Test Stream
               </button>
@@ -1075,16 +1187,16 @@ function LiveControlPage() {
           {/* 4. Stream Status Card */}
           <Card>
             <CardHeader title="Stream Status">
-              <StatusBadge text="OFFLINE" color={C.accent} />
+              <StatusBadge text={isLive ? 'LIVE' : 'OFFLINE'} color={isLive ? C.success : C.accent} />
             </CardHeader>
             <div className="flex flex-col items-center py-4">
               <div className="relative flex items-center justify-center">
-                <span className="absolute h-12 w-12 rounded-full animate-ping" style={{ background: `${C.accent}20` }} />
-                <span className="relative flex h-12 w-12 items-center justify-center rounded-full" style={{ background: `${C.accent}20` }}>
-                  <span className="h-6 w-6 rounded-full" style={{ background: C.accent }} />
+                <span className={`absolute h-12 w-12 rounded-full ${isLive ? 'animate-ping' : ''}`} style={{ background: `${isLive ? C.success : C.accent}20` }} />
+                <span className="relative flex h-12 w-12 items-center justify-center rounded-full" style={{ background: `${isLive ? C.success : C.accent}20` }}>
+                  <span className="h-6 w-6 rounded-full" style={{ background: isLive ? C.success : C.accent }} />
                 </span>
               </div>
-              <p className="mt-3 text-sm font-bold" style={{ color: C.accent }}>OFFLINE</p>
+              <p className="mt-3 text-sm font-bold" style={{ color: isLive ? C.success : C.accent }}>{isLive ? 'LIVE' : 'OFFLINE'}</p>
             </div>
           </Card>
 
@@ -1126,15 +1238,15 @@ function LiveControlPage() {
             } />
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Duration', value: '00:00:00', icon: Timer },
-                { label: 'Viewers', value: '0', icon: Users },
-                { label: 'Peak Viewers', value: '0', icon: TrendingUp },
-                { label: 'Data Used', value: '0.00 GB', icon: HardDrive },
+                { label: 'Duration', value: isLive ? formatDuration(liveDuration) : '00:00:00', icon: Timer },
+                { label: 'Viewers', value: isLive ? String(liveViewers) : '0', icon: Users },
+                { label: 'Peak Viewers', value: isLive ? String(Math.max(liveViewers, 0)) : '0', icon: TrendingUp },
+                { label: 'Data Used', value: isLive ? `${(liveDuration * 0.003).toFixed(2)} GB` : '0.00 GB', icon: HardDrive },
               ].map((s) => {
                 const Icon = s.icon
                 return (
                   <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}` }}>
-                    <Icon className="h-4 w-4 mx-auto mb-1.5" style={{ color: C.textDim }} />
+                    <Icon className="h-4 w-4 mx-auto mb-1.5" style={{ color: isLive ? C.success : C.textDim }} />
                     <p className="text-sm font-bold text-white">{s.value}</p>
                     <p className="text-[10px] mt-0.5" style={{ color: C.textDim }}>{s.label}</p>
                   </div>
@@ -1171,10 +1283,10 @@ function LiveControlPage() {
         <CardHeader title="Streaming Checklist" />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
-            { icon: Camera, label: 'Encoder Connected', status: 'Not Connected', color: C.accent },
-            { icon: Clock, label: 'Stream Key Valid', status: 'Pending', color: C.warning },
-            { icon: Camera, label: 'Video Input', status: 'No Signal', color: C.accent },
-            { icon: Mic, label: 'Audio Input', status: 'No Signal', color: C.accent },
+            { icon: Camera, label: 'Encoder Connected', status: isLive ? 'Connected' : 'Not Connected', color: isLive ? C.success : C.accent },
+            { icon: Clock, label: 'Stream Key Valid', status: isLive ? 'Valid' : 'Pending', color: isLive ? C.success : C.warning },
+            { icon: Camera, label: 'Video Input', status: isLive ? 'Active' : 'No Signal', color: isLive ? C.success : C.accent },
+            { icon: Mic, label: 'Audio Input', status: isLive ? 'Active' : 'No Signal', color: isLive ? C.success : C.accent },
             { icon: Wifi, label: 'Internet', status: 'Good', color: C.success },
           ].map((item) => {
             const Icon = item.icon

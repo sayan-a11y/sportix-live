@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/lib/store'
+import { io as socketIo } from 'socket.io-client'
 import Header from '@/components/sportix/Header'
 import Sidebar from '@/components/sportix/Sidebar'
 import LiveSlider from '@/components/sportix/LiveSlider'
@@ -695,12 +696,26 @@ function SettingsPage() {
   )
 }
 
+/* ──────────────────────── Mobile Detection Hook ──────────────────────── */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+  return isMobile
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    ║                        MAIN PAGE                               ║
    ═══════════════════════════════════════════════════════════════════ */
 
 export default function Home() {
   const { currentView, favorites, myList, toggleFavorite, toggleMyList } = useAppStore()
+  const isMobile = useIsMobile()
+  const prevIsMobileRef = useRef(false)
   const [streams, setStreams] = useState<StreamData[]>([])
   const [videos, setVideos] = useState<VideoData[]>([])
   const [continueWatching, setContinueWatching] = useState<ContinueData[]>([])
@@ -742,9 +757,82 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [loadData])
 
+  // Real-time socket connection for live stream updates
+  useEffect(() => {
+    const socket = socketIo('/?XTransformPort=3005', {
+      transports: ['websocket', 'polling'],
+    })
+
+    socket.on('stream-went-live', (data: any) => {
+      setStreams(prev => {
+        const exists = prev.find(s => s.id === data.streamId)
+        if (exists) {
+          return prev.map(s => s.id === data.streamId ? { ...s, status: 'live', ...data } : s)
+        }
+        return [{
+          id: data.streamId,
+          title: data.title,
+          category: data.category,
+          status: 'live',
+          viewerCount: 0,
+          peakViewers: 0,
+          homeTeam: data.homeTeam || '',
+          awayTeam: data.awayTeam || '',
+          homeScore: 0,
+          awayScore: 0,
+          matchTime: '0:00',
+          isFeatured: true,
+          createdAt: new Date().toISOString(),
+        }, ...prev]
+      })
+    })
+
+    socket.on('stream-went-offline', (data: any) => {
+      setStreams(prev => prev.map(s =>
+        s.id === data.streamId
+          ? { ...s, status: 'offline' as const, isFeatured: false }
+          : s
+      ))
+    })
+
+    socket.on('score-update', (data: any) => {
+      setStreams(prev => prev.map(s =>
+        s.id === data.streamId
+          ? { ...s, homeScore: data.homeScore, awayScore: data.awayScore, matchTime: data.matchTime }
+          : s
+      ))
+    })
+
+    socket.on('viewer-update', (data: any) => {
+      setStreams(prev => prev.map(s =>
+        s.id === data.streamId
+          ? { ...s, viewerCount: data.count, peakViewers: Math.max(s.peakViewers, data.count) }
+          : s
+      ))
+    })
+
+    return () => {
+      socket.disconnect()
+    }
+  }, [])
+
+  // ── Redirect admin to popular if on mobile ──
+  useEffect(() => {
+    if (isMobile && currentView === 'admin') {
+      useAppStore.getState().setCurrentView('popular')
+    }
+    prevIsMobileRef.current = isMobile
+  }, [isMobile, currentView])
+
   // ── Player, Admin & Live Control Room (full-screen, no layout) ──
   if (currentView === 'player') return <VideoPlayer />
-  if (currentView === 'admin') return <AdminPanel />
+  if (currentView === 'admin') {
+    if (isMobile) {
+      useAppStore.getState().setCurrentView('popular')
+      return null
+    }
+    return <AdminPanel />
+  }
   if (currentView === 'live-control-room') return <LiveControlRoom />
 
   // ── Derived data ──

@@ -122,7 +122,7 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => {
       const newCount = state.logoClickCount + 1
       if (newCount >= 7) {
-        return { logoClickCount: 0, isAdminUnlocked: true, currentView: 'admin' }
+        return { logoClickCount: 0, isAdminUnlocked: true, currentView: 'admin' as PageView }
       }
       return { logoClickCount: newCount }
     }),
