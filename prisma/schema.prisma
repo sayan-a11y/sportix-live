@@ -46,6 +46,10 @@ model Stream {
   updatedAt   DateTime @updatedAt
   chatMessages ChatMessage[]
   videos      Video[]
+  
+  @@index([status])
+  @@index([isFeatured])
+  @@index([category])
 }
 
 model Video {
@@ -62,6 +66,10 @@ model Video {
   stream      Stream?  @relation(fields: [streamId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([isFeatured])
+  @@index([category])
+  @@index([createdAt])
 }
 
 model ChatMessage {
