@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { Search, Bell, Crown, X, Calendar, ChevronDown } from 'lucide-react'
+import { Search, X, Calendar, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
 
 export default function Header() {
@@ -82,14 +82,6 @@ export default function Header() {
         <div className="flex items-center gap-1.5">
           <button onClick={() => setSearchOpen(!searchOpen)} className="rounded-lg p-2 text-white/40 transition-all hover:bg-white/5 hover:text-white/70 md:hidden">
             <Search className="h-[18px] w-[18px]" />
-          </button>
-          <button className="relative rounded-lg p-2 text-white/40 transition-all hover:bg-white/5 hover:text-white/70">
-            <Bell className="h-[18px] w-[18px]" />
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#ff3b3b] text-[9px] font-bold text-white shadow-lg">3</span>
-          </button>
-          <button className="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#00ff88] transition-all hover:bg-[#00ff88]/5 sm:flex">
-            <Crown className="h-3.5 w-3.5" />
-            Premium
           </button>
 
           <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all hover:bg-white/5">
