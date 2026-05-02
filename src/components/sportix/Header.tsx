@@ -57,7 +57,11 @@ export default function Header() {
 
   if (currentView === 'admin' || currentView === 'live-control-room') return null
 
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  const [today, setToday] = useState('')
+
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }))
+  }, [])
   const userInitial = session?.user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || session?.user?.email?.charAt(0)?.toUpperCase() || 'U'
 
   return (

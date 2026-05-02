@@ -18,26 +18,40 @@ interface ChatMessage {
 export default function LiveChat({ streamId, isAdmin = false }: { streamId: string; isAdmin?: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
-  const [username, setUsername] = useState(`User_${Math.floor(Math.random() * 9999)}`)
+  const [username, setUsername] = useState('Anonymous')
   const [isConnected, setIsConnected] = useState(false)
   const [showUsernameInput, setShowUsernameInput] = useState(true)
   const scrollRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
-    const socket = io('/?XTransformPort=3005', {
-      transports: ['websocket', 'polling'],
-      forceNew: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      timeout: 10000,
-    })
+    // Generate username only on client to avoid hydration mismatch
+    const randomId = Math.floor(Math.random() * 9999)
+    setUsername(`User_${randomId}`)
+  }, [])
+
+  useEffect(() => {
+    let socket: Socket | null = null
+    try {
+      socket = io({
+        path: '/api/socket',
+        addTrailingSlash: false,
+        transports: ['websocket', 'polling'],
+        forceNew: true,
+        reconnection: true,
+        reconnectionAttempts: 3,
+        timeout: 5000,
+      })
+    } catch (err) {
+      console.warn('Chat socket initialization failed:', err)
+    }
 
     socketRef.current = socket
+    if (!socket) return
 
     socket.on('connect', () => {
       setIsConnected(true)
-      socket.emit('join-stream', streamId)
+      socket?.emit('join-stream', streamId)
     })
 
     socket.on('disconnect', () => setIsConnected(false))
@@ -58,13 +72,15 @@ export default function LiveChat({ streamId, isAdmin = false }: { streamId: stri
 
     // Load initial messages from DB
     fetch(`/api/chat?streamId=${streamId}`)
-      .then((r) => r.json())
-      .then((msgs: ChatMessage[]) => setMessages(msgs))
+      .then((r) => r.ok ? r.json() : [])
+      .then((msgs: ChatMessage[]) => {
+        if (Array.isArray(msgs)) setMessages(msgs)
+      })
       .catch(() => {})
 
     return () => {
-      socket.emit('leave-stream', streamId)
-      socket.disconnect()
+      socket?.emit('leave-stream', streamId)
+      socket?.disconnect()
     }
   }, [streamId])
 

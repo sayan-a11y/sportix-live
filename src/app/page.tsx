@@ -887,9 +887,14 @@ export default function Home() {
       setStreams(streamsData)
       setVideos(videosData)
 
-      const saved = localStorage.getItem('sportix-continue')
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('sportix-continue') : null
       if (saved) {
-        setContinueWatching(JSON.parse(saved))
+        try {
+          setContinueWatching(JSON.parse(saved))
+        } catch (err) {
+          console.error('Failed to parse continue watching data:', err)
+          localStorage.removeItem('sportix-continue')
+        }
       } else {
         setContinueWatching([
           { id: 'cw1', videoId: 'cw1', title: 'Man City Road to UCL Final', thumbnail: '/thumbnails/ucl-semi.png', duration: 1200, progress: 0.65, watchedAt: new Date().toISOString() },
@@ -926,11 +931,23 @@ export default function Home() {
 
   // Real-time socket connection for live stream updates
   useEffect(() => {
-    const socket = socketIo('/?XTransformPort=3005', {
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 3,
-      timeout: 5000,
-    })
+    let socket: any = null
+    try {
+      // Only attempt socket connection if we're not in a typical serverless environment
+      // or if we have a valid endpoint. On Vercel, this might fail, so we wrap it.
+      socket = socketIo({
+        path: '/api/socket',
+        addTrailingSlash: false,
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 2,
+        timeout: 3000,
+      })
+    } catch (err) {
+      console.warn('Socket initialization failed:', err)
+      return
+    }
+
+    if (!socket) return
 
     socket.on('connect_error', () => {
       console.warn('Socket connection failed. Real-time updates might be delayed.')
