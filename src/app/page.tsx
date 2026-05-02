@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useSession, signOut } from 'next-auth/react'
 import { useAppStore } from '@/lib/store'
 import { io as socketIo } from 'socket.io-client'
 import Header from '@/components/sportix/Header'
@@ -12,6 +13,8 @@ import VideoPlayer from '@/components/sportix/VideoPlayer'
 import AdminPanel from '@/components/sportix/AdminPanel'
 import LiveControlRoom from '@/components/sportix/LiveControlRoom'
 import BottomNav from '@/components/sportix/BottomNav'
+import LoginPage from '@/components/auth/LoginPage'
+import SignupPage from '@/components/auth/SignupPage'
 import { ContentSection, VideoCard } from '@/components/sportix/VideoCard'
 import {
   Star, Clock, Flame, TrendingUp, Play, ArrowLeft,
@@ -581,7 +584,7 @@ function MyListPage({ videos }: { videos: VideoData[] }) {
 
 /* ──────────────────────── Settings Page ──────────────────────── */
 
-function SettingsPage() {
+function SettingsPage({ session }: { session: any }) {
   const { settings, updateSettings } = useAppStore()
 
   const settingGroups = [
@@ -616,11 +619,11 @@ function SettingsPage() {
       <div className="glass-card p-4">
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#00ff88] to-[#00cc6a] text-lg font-bold text-[#02040a]">
-            S
+            {session?.user?.name?.charAt(0)?.toUpperCase() || 'S'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white">Sportix User</p>
-            <p className="text-xs text-white/40">user@sportix.io</p>
+            <p className="text-sm font-bold text-white">{session?.user?.name || 'Sportix User'}</p>
+            <p className="text-xs text-white/40">{session?.user?.email || 'user@sportix.io'}</p>
           </div>
           <button className="rounded-xl bg-white/5 px-3 py-2 text-xs font-medium text-white/50 hover:bg-white/[0.08] transition-colors">
             Edit
@@ -692,6 +695,21 @@ function SettingsPage() {
           <span className="flex items-center gap-1"><Wifi className="h-3 w-3 text-[#00ff88]" /> Connected</span>
         </div>
       </div>
+
+      {/* Logout Button */}
+      <button
+        onClick={() => signOut({ callbackUrl: '/' })}
+        className="w-full glass-card p-4 flex items-center gap-3 transition-all hover:bg-[#ff3b3b]/5 hover:border-[#ff3b3b]/20"
+        style={{ borderColor: 'rgba(255, 59, 59, 0.1)' }}
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ff3b3b]/10">
+          <Settings className="h-5 w-5 text-[#ff3b3b]" />
+        </div>
+        <div className="flex-1 text-left">
+          <p className="text-sm font-semibold text-[#ff3b3b]">Log Out</p>
+          <p className="text-xs text-white/40">Sign out of your account</p>
+        </div>
+      </button>
     </div>
   )
 }
@@ -709,11 +727,43 @@ function useIsMobile() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   ║                     AUTH GATE WRAPPER                           ║
+   ═══════════════════════════════════════════════════════════════════ */
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession()
+  const [authPage, setAuthPage] = useState<'login' | 'signup'>('login')
+
+  if (status === 'loading') {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center" style={{ background: '#0B0F14' }}>
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#00C853] to-[#00a844] shadow-lg" style={{ boxShadow: '0 0 30px rgba(0, 200, 83, 0.3)' }}>
+            <span className="text-white text-lg font-black">S</span>
+          </div>
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#00C853]/30 border-t-[#00C853]" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!session) {
+    if (authPage === 'signup') {
+      return <SignupPage onSwitchToLogin={() => setAuthPage('login')} />
+    }
+    return <LoginPage onSwitchToSignup={() => setAuthPage('signup')} />
+  }
+
+  return <>{children}</>
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    ║                        MAIN PAGE                               ║
    ═══════════════════════════════════════════════════════════════════ */
 
 export default function Home() {
   const { currentView, favorites, myList, toggleFavorite, toggleMyList } = useAppStore()
+  const { data: session } = useSession()
   const isMobile = useIsMobile()
   const prevIsMobileRef = useRef(false)
   const [streams, setStreams] = useState<StreamData[]>([])
@@ -852,7 +902,7 @@ export default function Home() {
     if (currentView === 'highlights') return <HighlightsPage videos={videos} />
     if (currentView === 'favorites') return <FavoritesPage videos={videos} />
     if (currentView === 'mylist') return <MyListPage videos={videos} />
-    if (currentView === 'settings') return <SettingsPage />
+    if (currentView === 'settings') return <SettingsPage session={session} />
 
     // Default: Home page content
     if (loading) {
@@ -1033,31 +1083,33 @@ export default function Home() {
 
   // ── Shared layout for ALL non-player/admin views ──
   return (
-    <div className="sportix-bg min-h-screen flex flex-col">
-      <Header />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto pb-20 lg:pb-6">
-          {renderMainContent()}
-        </main>
-      </div>
-
-      {/* Footer — desktop */}
-      <footer className="hidden border-t border-white/[0.06] bg-[#080c16]/50 py-4 lg:block">
-        <div className="flex items-center justify-between px-6">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-[#00ff88] to-[#00cc6a]">
-              <span className="text-[#02040a] text-[10px] font-black">S</span>
-            </div>
-            <span className="text-xs font-semibold text-white/30">
-              Sport<span className="text-[#00ff88]/30">ix</span> Live
-            </span>
-          </div>
-          <p className="text-[10px] text-white/15">© 2025 Sportix Live. All rights reserved.</p>
+    <AuthGate>
+      <div className="sportix-bg min-h-screen flex flex-col">
+        <Header />
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto pb-20 lg:pb-6">
+            {renderMainContent()}
+          </main>
         </div>
-      </footer>
 
-      <BottomNav />
-    </div>
+        {/* Footer — desktop */}
+        <footer className="hidden border-t border-white/[0.06] bg-[#080c16]/50 py-4 lg:block">
+          <div className="flex items-center justify-between px-6">
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-[#00ff88] to-[#00cc6a]">
+                <span className="text-[#02040a] text-[10px] font-black">S</span>
+              </div>
+              <span className="text-xs font-semibold text-white/30">
+                Sport<span className="text-[#00ff88]/30">ix</span> Live
+              </span>
+            </div>
+            <p className="text-[10px] text-white/15">© 2025 Sportix Live. All rights reserved.</p>
+          </div>
+        </footer>
+
+        <BottomNav />
+      </div>
+    </AuthGate>
   )
 }
