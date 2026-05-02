@@ -31,7 +31,7 @@ interface StreamData {
   id: string; title: string; description?: string; thumbnail?: string
   category: string; status: string; viewerCount: number; peakViewers: number
   homeTeam: string; awayTeam: string; homeScore: number; awayScore: number
-  matchTime?: string; isFeatured: boolean; fps?: number
+  matchTime?: string; isFeatured: boolean; fps?: number; playbackId?: string
 }
 
 interface VideoData {
@@ -62,7 +62,7 @@ function openVideo(video: VideoData, store: any) {
 }
 
 function openLiveStream(stream: StreamData, store: any) {
-  store.setSelectedStream(stream)
+  store.setSelectedStream(stream as any)
   store.setSelectedVideo({
     id: stream.id, title: stream.title, duration: 0, category: stream.category,
     views: stream.viewerCount, isFeatured: stream.isFeatured,

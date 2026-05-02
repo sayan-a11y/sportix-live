@@ -21,6 +21,7 @@ export async function POST(req: Request) {
         category: category || 'football',
         rtmpUrl: 'rtmps://global-live.mux.com:443/app', 
         streamKey: liveStream.stream_key,
+        playbackId: liveStream.playback_ids?.[0]?.id,
         status: 'offline',
         homeTeam: homeTeam || 'Team A',
         awayTeam: awayTeam || 'Team B',

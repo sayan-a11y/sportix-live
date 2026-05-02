@@ -17,6 +17,7 @@ interface StreamData {
   awayScore: number
   matchTime?: string
   isFeatured: boolean
+  playbackId?: string
 }
 
 interface VideoData {

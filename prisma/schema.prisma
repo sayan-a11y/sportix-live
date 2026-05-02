@@ -30,6 +30,7 @@ model Stream {
   status      String   @default("offline")
   rtmpUrl     String?
   streamKey   String?
+  playbackId  String?
   viewerCount Int      @default(0)
   peakViewers Int      @default(0)
   fps         Float?

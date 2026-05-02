@@ -87,21 +87,19 @@ Stage Summary:
 ---
 Task ID: 4
 Agent: Main Agent
-Task: Real-time OBS Streaming Integration with Mux
+Task: Real-time OBS Streaming Integration with Mux & HLS Playback
 
 Work Log:
-- Installed `@mux/mux-node` library for live streaming management
-- Created `src/lib/mux.ts` client utility for backend communication
-- Built `/api/streams/create` API route to generate unique RTMP Server URLs and Stream Keys via Mux
-- Built `/api/streams` API route to fetch existing stream details for the Control Room
-- Updated `LiveControlRoom.tsx` UI to:
-  - Fetch and display real RTMP credentials from the database
-  - Implement "Go Live Now" functionality that triggers Mux stream creation
-  - Fix TypeScript literal type mismatches in health and checklist components
-- Provided OBS setup guide with server/key configuration instructions
+- Installed `@mux/mux-node` and `@mux/mux-player-react` for streaming and playback
+- Updated Prisma schema with `playbackId` field in `Stream` model and pushed to DB
+- Built `/api/streams/create` API to generate RTMP credentials and save Playback IDs
+- Updated `VideoPlayer.tsx` to use `MuxPlayer` for real-time HLS live streaming
+- Integrated `playbackId` flow from API to Home page and Global Store (Zustand)
+- Fixed TypeScript errors in Control Room components
+- Pushed all streaming infrastructure updates to GitHub
 
 Stage Summary:
-- End-to-end streaming pipeline integrated: OBS -> Mux -> Database -> UI
-- Fixed all TypeScript errors in the Control Room components
-- Secure environment configuration ready for production streaming
+- End-to-end streaming pipeline integrated: OBS -> Mux -> Database -> Website Player
+- Real-time HLS playback enabled for viewers
+- Automatic stream status detection (Online/Offline) in player UI
 ---
