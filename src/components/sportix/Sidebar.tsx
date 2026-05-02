@@ -1,14 +1,16 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
+import type { PageView } from '@/lib/store'
 import {
   Home, Radio, Trophy, Calendar, Award, Flame,
   Heart, ListVideo, Settings, Crown, ChevronRight
 } from 'lucide-react'
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { id: PageView; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'home', label: 'Home', icon: Home },
-  { id: 'live', label: 'Live Now', icon: Radio },
+  { id: 'live', label: 'Live Match', icon: Radio },
+  { id: 'popular', label: 'Popular', icon: Flame },
   { id: 'sports', label: 'Sports', icon: Trophy },
   { id: 'schedule', label: 'Schedule', icon: Calendar },
   { id: 'leagues', label: 'Leagues', icon: Award },
@@ -19,28 +21,36 @@ const NAV_ITEMS = [
 ]
 
 export default function Sidebar() {
-  const { currentView } = useAppStore()
+  const { currentView, setCurrentView } = useAppStore()
 
-  if (currentView !== 'home') return null
+  // Only show sidebar on non-player, non-admin pages
+  if (currentView === 'player' || currentView === 'admin') return null
 
   return (
     <aside className="hidden lg:flex flex-col w-[220px] flex-shrink-0 border-r border-white/[0.06] bg-[#080c16]/50">
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto no-scrollbar">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon
-          const isActive = item.id === 'home'
+          const isActive = currentView === item.id
           return (
             <button
               key={item.id}
+              onClick={() => setCurrentView(item.id)}
               className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-150 ${
                 isActive
                   ? 'bg-[#00ff88]/[0.08] text-[#00ff88] shadow-sm shadow-[#00ff88]/5'
                   : 'text-white/45 hover:bg-white/[0.03] hover:text-white/70'
               }`}
             >
-              <Icon className="h-[18px] w-[18px]" />
+              <Icon className={`h-[18px] w-[18px] ${isActive ? 'drop-shadow-[0_0_6px_rgba(0,255,136,0.3)]' : ''}`} />
               <span>{item.label}</span>
+              {item.id === 'live' && (
+                <span className="ml-auto flex items-center gap-1 rounded-md bg-[#ff3b3b]/15 px-1.5 py-0.5 text-[9px] font-bold text-[#ff3b3b]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#ff3b3b] animate-pulse" />
+                  LIVE
+                </span>
+              )}
             </button>
           )
         })}

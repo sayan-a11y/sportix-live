@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type PageView = 'home' | 'player' | 'admin'
+export type PageView = 'home' | 'player' | 'admin' | 'live' | 'sports' | 'schedule' | 'leagues' | 'highlights' | 'favorites' | 'mylist' | 'settings' | 'popular'
 
 interface StreamData {
   id: string
@@ -49,6 +49,14 @@ interface AppState {
   selectedVideo: VideoData | null
   setSelectedVideo: (video: VideoData | null) => void
 
+  // Favorites
+  favorites: string[]
+  toggleFavorite: (id: string) => void
+
+  // My List
+  myList: string[]
+  toggleMyList: (id: string) => void
+
   // Admin
   isAdminUnlocked: boolean
   setAdminUnlocked: (v: boolean) => void
@@ -66,6 +74,17 @@ interface AppState {
   // Live viewer sync
   liveViewers: Record<string, number>
   updateViewerCount: (streamId: string, count: number) => void
+
+  // Settings
+  settings: {
+    quality: string
+    autoplay: boolean
+    notifications: boolean
+    darkMode: boolean
+    language: string
+    dataSaver: boolean
+  }
+  updateSettings: (key: string, value: string | boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -76,6 +95,24 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedStream: (stream) => set({ selectedStream: stream }),
   selectedVideo: null,
   setSelectedVideo: (video) => set({ selectedVideo: video }),
+
+  // Favorites
+  favorites: [],
+  toggleFavorite: (id) =>
+    set((state) => ({
+      favorites: state.favorites.includes(id)
+        ? state.favorites.filter((f) => f !== id)
+        : [...state.favorites, id],
+    })),
+
+  // My List
+  myList: [],
+  toggleMyList: (id) =>
+    set((state) => ({
+      myList: state.myList.includes(id)
+        ? state.myList.filter((m) => m !== id)
+        : [...state.myList, id],
+    })),
 
   // Admin
   isAdminUnlocked: false,
@@ -112,5 +149,19 @@ export const useAppStore = create<AppState>((set) => ({
   updateViewerCount: (streamId, count) =>
     set((state) => ({
       liveViewers: { ...state.liveViewers, [streamId]: count },
+    })),
+
+  // Settings
+  settings: {
+    quality: 'auto',
+    autoplay: true,
+    notifications: true,
+    darkMode: true,
+    language: 'en',
+    dataSaver: false,
+  },
+  updateSettings: (key, value) =>
+    set((state) => ({
+      settings: { ...state.settings, [key]: value },
     })),
 }))
