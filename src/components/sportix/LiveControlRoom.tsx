@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAppStore } from '@/lib/store'
+import { toast } from 'sonner'
 import {
   LayoutDashboard,
   Radio,
@@ -536,11 +537,11 @@ function StreamPreviewCard({ isLive, onGoLive }: { isLive: boolean; onGoLive: ()
    STREAM CONNECTION CARD
    ═══════════════════════════════════════════════════════════════ */
 
-function StreamConnectionCard() {
+function StreamConnectionCard({ rtmpUrl, streamKey }: { rtmpUrl: string; streamKey: string }) {
   const [showKey, setShowKey] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-  const serverUrl = 'rtmp://live.sportix.io/live'
-  const streamKey = 'sk-live-8f3a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c'
+  const serverUrl = rtmpUrl || 'rtmps://global-live.mux.com:443/app'
+  const finalStreamKey = streamKey || '••••••••••••••••••••'
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -602,7 +603,7 @@ function StreamConnectionCard() {
           <div className="relative flex-1">
             <input
               type={showKey ? 'text' : 'password'}
-              value={streamKey}
+              value={finalStreamKey}
               readOnly
               className="w-full rounded-xl border px-3.5 py-2.5 text-[12px] font-mono text-white/70 focus:outline-none"
               style={{ borderColor: COLORS.border, background: 'rgba(255,255,255,0.02)' }}
@@ -615,7 +616,7 @@ function StreamConnectionCard() {
             </button>
           </div>
           <button
-            onClick={() => handleCopy(streamKey, 'key')}
+            onClick={() => handleCopy(finalStreamKey, 'key')}
             className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border transition-all hover:bg-white/[0.04]"
             style={{ borderColor: COLORS.border }}
           >
@@ -857,11 +858,11 @@ function StreamStatusCard({ isLive }: { isLive: boolean }) {
 
 function StreamHealthCard({ isLive }: { isLive: boolean }) {
   const metrics = [
-    { label: 'Video Resolution', value: isLive ? '1920x1080' : 'N/A', status: isLive ? 'good' : 'bad' as const, icon: <Monitor className="h-3.5 w-3.5" /> },
-    { label: 'Bitrate', value: isLive ? '4,500 kbps' : 'N/A', status: isLive ? 'good' : 'bad' as const, icon: <Signal className="h-3.5 w-3.5" /> },
-    { label: 'Audio Bitrate', value: isLive ? '128 kbps' : 'N/A', status: isLive ? 'good' : 'bad' as const, icon: <Volume2 className="h-3.5 w-3.5" /> },
-    { label: 'FPS', value: isLive ? '60' : 'N/A', status: isLive ? 'good' : 'bad' as const, icon: <Activity className="h-3.5 w-3.5" /> },
-    { label: 'Dropped Frames', value: isLive ? '3 (0.05%)' : 'N/A', status: isLive ? 'good' : 'bad' as const, icon: <AlertTriangle className="h-3.5 w-3.5" /> },
+    { label: 'Video Resolution', value: isLive ? '1920x1080' : 'N/A', status: (isLive ? 'good' : 'bad') as 'good' | 'warn' | 'bad', icon: <Monitor className="h-3.5 w-3.5" /> },
+    { label: 'Bitrate', value: isLive ? '4,500 kbps' : 'N/A', status: (isLive ? 'good' : 'bad') as 'good' | 'warn' | 'bad', icon: <Signal className="h-3.5 w-3.5" /> },
+    { label: 'Audio Bitrate', value: isLive ? '128 kbps' : 'N/A', status: (isLive ? 'good' : 'bad') as 'good' | 'warn' | 'bad', icon: <Volume2 className="h-3.5 w-3.5" /> },
+    { label: 'FPS', value: isLive ? '60' : 'N/A', status: (isLive ? 'good' : 'bad') as 'good' | 'warn' | 'bad', icon: <Activity className="h-3.5 w-3.5" /> },
+    { label: 'Dropped Frames', value: isLive ? '3 (0.05%)' : 'N/A', status: (isLive ? 'good' : 'bad') as 'good' | 'warn' | 'bad', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
   ]
 
   return (
@@ -987,12 +988,12 @@ function RecentStreamsCard() {
 
 function StreamingChecklist({ isLive }: { isLive: boolean }) {
   const checklistItems = [
-    { label: 'Encoder Connected', status: isLive ? 'online' as const : 'online' as const, icon: <Cpu className="h-4 w-4" /> },
-    { label: 'Stream Key Valid', status: 'online', icon: <Lock className="h-4 w-4" /> },
-    { label: 'Video Input', status: isLive ? 'online' as const : 'warning' as const, icon: <Monitor className="h-4 w-4" /> },
-    { label: 'Audio Input', status: isLive ? 'online' as const : 'online' as const, icon: <Volume2 className="h-4 w-4" /> },
-    { label: 'Internet Status', status: 'online', icon: <Wifi className="h-4 w-4" /> },
-    { label: 'Server Connection', status: isLive ? 'online' as const : 'online' as const, icon: <Shield className="h-4 w-4" /> },
+    { label: 'Encoder Connected', status: (isLive ? 'online' : 'online') as 'online' | 'offline' | 'warning', icon: <Cpu className="h-4 w-4" /> },
+    { label: 'Stream Key Valid', status: 'online' as const, icon: <Lock className="h-4 w-4" /> },
+    { label: 'Video Input', status: (isLive ? 'online' : 'warning') as 'online' | 'offline' | 'warning', icon: <Monitor className="h-4 w-4" /> },
+    { label: 'Audio Input', status: (isLive ? 'online' : 'online') as 'online' | 'offline' | 'warning', icon: <Volume2 className="h-4 w-4" /> },
+    { label: 'Internet Status', status: 'online' as const, icon: <Wifi className="h-4 w-4" /> },
+    { label: 'Server Connection', status: (isLive ? 'online' : 'online') as 'online' | 'offline' | 'warning', icon: <Shield className="h-4 w-4" /> },
   ]
 
   const completedCount = checklistItems.filter((i) => i.status === 'online').length
@@ -1056,14 +1057,15 @@ function StreamingChecklist({ isLive }: { isLive: boolean }) {
    PAGE CONTENT ROUTER
    ═══════════════════════════════════════════════════════════════ */
 
-function PageContent({ activePage, isLive, onGoLive, onStopLive }: {
+function PageContent({ activePage, isLive, onGoLive, onStopLive, streamInfo }: {
   activePage: SidebarPage
   isLive: boolean
   onGoLive: () => void
   onStopLive: () => void
+  streamInfo: any
 }) {
   if (activePage === 'dashboard') return <DashboardPageContent />
-  if (activePage === 'live-control') return <LiveControlPageContent isLive={isLive} onGoLive={onGoLive} onStopLive={onStopLive} />
+  if (activePage === 'live-control') return <LiveControlPageContent isLive={isLive} onGoLive={onGoLive} onStopLive={onStopLive} streamInfo={streamInfo} />
   if (activePage === 'settings') return <SettingsPageContent />
   if (activePage === 'analytics') return <AnalyticsPageContent />
   if (activePage === 'stream-history') return <StreamHistoryContent />
@@ -1225,10 +1227,11 @@ function DashboardPageContent() {
    LIVE CONTROL PAGE (Main Grid)
    ═══════════════════════════════════════════════════════════════ */
 
-function LiveControlPageContent({ isLive, onGoLive, onStopLive }: {
+function LiveControlPageContent({ isLive, onGoLive, onStopLive, streamInfo }: {
   isLive: boolean
   onGoLive: () => void
   onStopLive: () => void
+  streamInfo: any
 }) {
   return (
     <div className="space-y-6 fade-in-up">
@@ -1237,7 +1240,10 @@ function LiveControlPageContent({ isLive, onGoLive, onStopLive }: {
         {/* LEFT COLUMN */}
         <div className="xl:col-span-1 space-y-5">
           <StreamPreviewCard isLive={isLive} onGoLive={onGoLive} />
-          <StreamConnectionCard />
+          <StreamConnectionCard 
+            rtmpUrl={streamInfo?.rtmpUrl} 
+            streamKey={streamInfo?.streamKey} 
+          />
         </div>
 
         {/* CENTER COLUMN */}
@@ -1453,8 +1459,51 @@ export default function LiveControlRoom() {
   const [activePage, setActivePage] = useState<SidebarPage>('live-control')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isLive, setIsLive] = useState(false)
+  const [streamInfo, setStreamInfo] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  const handleGoLive = useCallback(() => setIsLive(true), [])
+  const fetchStream = useCallback(async () => {
+    try {
+      const res = await fetch('/api/streams')
+      const data = await res.json()
+      if (data && !data.error) {
+        setStreamInfo(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch stream:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchStream()
+  }, [fetchStream])
+
+  const handleGoLive = useCallback(async () => {
+    if (!streamInfo) {
+      const loadingToast = toast.loading('Creating your live stream...')
+      try {
+        const res = await fetch('/api/streams/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: 'New Live Match',
+            category: 'cricket'
+          })
+        })
+        const data = await res.json()
+        if (data.error) throw new Error(data.error)
+        setStreamInfo(data)
+        toast.success('Live stream created! Ready to connect OBS.', { id: loadingToast })
+      } catch (err: any) {
+        toast.error(`Failed to create stream: ${err.message}`, { id: loadingToast })
+        return
+      }
+    }
+    setIsLive(true)
+  }, [streamInfo])
+
   const handleStopLive = useCallback(() => setIsLive(false), [])
   const handleBack = useCallback(() => setCurrentView('home'), [setCurrentView])
 
@@ -1491,6 +1540,7 @@ export default function LiveControlRoom() {
           isLive={isLive}
           onGoLive={handleGoLive}
           onStopLive={handleStopLive}
+          streamInfo={streamInfo}
         />
       </main>
     </div>
