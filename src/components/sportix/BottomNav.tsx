@@ -26,8 +26,8 @@ export default function BottomNav() {
   const { currentView, setCurrentView } = useAppStore()
   const [showMore, setShowMore] = useState(false)
 
-  // Hide on player/admin pages
-  if (currentView === 'player' || currentView === 'admin') return null
+  // Hide on player/admin/control-room pages
+  if (currentView === 'player' || currentView === 'admin' || currentView === 'live-control-room') return null
 
   // More menu
   if (showMore) {

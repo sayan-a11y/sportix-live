@@ -9,6 +9,7 @@ import HeroBanner from '@/components/sportix/HeroBanner'
 import CategoryTabs from '@/components/sportix/CategoryTabs'
 import VideoPlayer from '@/components/sportix/VideoPlayer'
 import AdminPanel from '@/components/sportix/AdminPanel'
+import LiveControlRoom from '@/components/sportix/LiveControlRoom'
 import BottomNav from '@/components/sportix/BottomNav'
 import { ContentSection, VideoCard } from '@/components/sportix/VideoCard'
 import {
@@ -741,9 +742,10 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [loadData])
 
-  // ── Player & Admin views (full-screen, no layout) ──
+  // ── Player, Admin & Live Control Room (full-screen, no layout) ──
   if (currentView === 'player') return <VideoPlayer />
   if (currentView === 'admin') return <AdminPanel />
+  if (currentView === 'live-control-room') return <LiveControlRoom />
 
   // ── Derived data ──
   const liveStreams = streams.filter(s => s.status === 'live')

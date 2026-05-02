@@ -1,11 +1,11 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { Search, Bell, Crown, X, Calendar, ChevronDown } from 'lucide-react'
+import { Search, Bell, Crown, X, Calendar, ChevronDown, Radio } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
 
 export default function Header() {
-  const { currentView, incrementLogoClicks, resetLogoClicks } = useAppStore()
+  const { currentView, incrementLogoClicks, resetLogoClicks, setCurrentView } = useAppStore()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -20,7 +20,7 @@ export default function Header() {
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [])
 
-  if (currentView === 'admin') return null
+  if (currentView === 'admin' || currentView === 'live-control-room') return null
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
@@ -90,6 +90,13 @@ export default function Header() {
           <button className="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#00ff88] transition-all hover:bg-[#00ff88]/5 sm:flex">
             <Crown className="h-3.5 w-3.5" />
             Premium
+          </button>
+          <button
+            onClick={() => setCurrentView('live-control-room')}
+            className="hidden items-center gap-1.5 rounded-lg border border-[#ff3b3b]/20 px-2.5 py-1.5 text-xs font-semibold text-[#ff3b3b] transition-all hover:bg-[#ff3b3b]/5 sm:flex"
+          >
+            <Radio className="h-3.5 w-3.5" />
+            Control Room
           </button>
           <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all hover:bg-white/5">
             <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[#00ff88]/40 to-[#00ff88]/10 ring-1 ring-white/10 cursor-pointer">

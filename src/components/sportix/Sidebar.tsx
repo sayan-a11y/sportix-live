@@ -24,7 +24,7 @@ export default function Sidebar() {
   const { currentView, setCurrentView } = useAppStore()
 
   // Only show sidebar on non-player, non-admin pages
-  if (currentView === 'player' || currentView === 'admin') return null
+  if (currentView === 'player' || currentView === 'admin' || currentView === 'live-control-room') return null
 
   return (
     <aside className="hidden lg:flex flex-col w-[220px] flex-shrink-0 border-r border-white/[0.06] bg-[#080c16]/50">
