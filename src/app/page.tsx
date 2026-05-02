@@ -928,6 +928,12 @@ export default function Home() {
   useEffect(() => {
     const socket = socketIo('/?XTransformPort=3005', {
       transports: ['websocket', 'polling'],
+      reconnectionAttempts: 3,
+      timeout: 5000,
+    })
+
+    socket.on('connect_error', () => {
+      console.warn('Socket connection failed. Real-time updates might be delayed.')
     })
 
     socket.on('stream-went-live', (data: any) => {
