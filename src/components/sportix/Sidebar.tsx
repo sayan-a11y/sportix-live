@@ -4,7 +4,7 @@ import { useAppStore } from '@/lib/store'
 import type { PageView } from '@/lib/store'
 import {
   Home, Radio, Trophy, Calendar, Award, Flame,
-  Heart, ListVideo, Settings, Crown, ChevronRight
+  Heart, ListVideo, Settings, Crown, ChevronRight, Play
 } from 'lucide-react'
 
 const NAV_ITEMS: { id: PageView; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
