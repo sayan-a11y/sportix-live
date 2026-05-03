@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/lib/store'
 import { io as socketIo } from 'socket.io-client'
 import {
@@ -58,6 +59,7 @@ import {
   Square,
 } from 'lucide-react'
 import VideosPage from './VideosPage'
+import OBSWebSocket from 'obs-websocket-js'
 
 /* ═══════════════════════════════════════════════════════════════
    DESIGN SYSTEM
@@ -106,6 +108,7 @@ type AdminPage =
   | 'activity-logs'
   | 'notifications'
   | 'admins'
+  | 'ads-analytics'
 
 interface MenuSection {
   label: string | null
@@ -142,6 +145,7 @@ const menuSections: MenuSection[] = [
       { id: 'analytics', label: 'Analytics', icon: BarChart3 },
       { id: 'engagement', label: 'Engagement', icon: TrendingUp },
       { id: 'revenue', label: 'Revenue', icon: DollarSign },
+      { id: 'ads-analytics', label: 'Ads Analytics', icon: BarChart3, badge: 'NEW' },
     ],
   },
   {
@@ -183,7 +187,7 @@ function Card({ children, className = '', style }: { children: React.ReactNode; 
   )
 }
 
-function CardHeader({ title, children }: { title: string; children?: React.ReactNode }) {
+function CardHeader({ title, children }: { title: React.ReactNode; children?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between mb-4">
       <h3 className="text-[15px] font-semibold text-white">{title}</h3>
@@ -828,12 +832,46 @@ function LiveControlPage() {
   const [liveDuration, setLiveDuration] = useState(0)
   const [liveViewers, setLiveViewers] = useState(0)
 
+  // OBS WebSocket State
+  const [obsConnected, setObsConnected] = useState(false)
+  const [obsPassword, setObsPassword] = useState('')
+  const [obsStatus, setObsStatus] = useState('Disconnected')
+  const obsRef = useRef<OBSWebSocket | null>(null)
+
   // Live timer
   useEffect(() => {
     if (!isLive) return
     const timer = setInterval(() => setLiveDuration(d => d + 1), 1000)
     return () => clearInterval(timer)
   }, [isLive])
+
+  const connectOBS = async () => {
+    if (obsConnected) return
+    const obs = new OBSWebSocket()
+    try {
+      setObsStatus('Connecting...')
+      await obs.connect('ws://localhost:4455', obsPassword)
+      obsRef.current = obs
+      setObsConnected(true)
+      setObsStatus('Connected')
+      
+      obs.on('StreamStateChanged', (data) => {
+        setObsStatus(data.outputActive ? 'Streaming' : 'Connected')
+      })
+    } catch (err) {
+      console.error('OBS Connection failed:', err)
+      setObsStatus('Failed')
+    }
+  }
+
+  const disconnectOBS = async () => {
+    if (obsRef.current) {
+      await obsRef.current.disconnect()
+      obsRef.current = null
+      setObsConnected(false)
+      setObsStatus('Disconnected')
+    }
+  }
 
   function formatDuration(sec: number): string {
     const h = Math.floor(sec / 3600)
@@ -884,6 +922,11 @@ function LiveControlPage() {
 
       // Join the stream room
       socket.emit('join-stream', stream.id)
+
+      // 3. Trigger OBS if connected
+      if (obsConnected && obsRef.current) {
+        await obsRef.current.call('StartStream')
+      }
     } catch (err) {
       console.error('Failed to go live:', err)
     } finally {
@@ -906,6 +949,11 @@ function LiveControlPage() {
       setLiveStreamId(null)
       setLiveDuration(0)
       setLiveViewers(0)
+
+      // Stop OBS if connected
+      if (obsConnected && obsRef.current) {
+        await obsRef.current.call('StopStream')
+      }
     } catch (err) {
       console.error('Failed to stop live:', err)
     }
@@ -1070,6 +1118,59 @@ function LiveControlPage() {
                 </ol>
                 <button className="flex items-center gap-1.5 mt-3 rounded-xl px-4 py-2 text-[11px] font-medium transition-colors hover:bg-white/[0.05] border" style={{ borderColor: C.border, color: C.textSec }}>
                   <Play className="h-3.5 w-3.5" /> Watch Guide
+                </button>
+              </div>
+            </div>
+          </Card>
+
+          {/* 3. OBS Control Card */}
+          <Card>
+            <CardHeader title={
+              <span className="flex items-center gap-2">
+                <Monitor className="h-4 w-4" style={{ color: C.textSec }} />
+                OBS Automation
+              </span>
+            }>
+              <StatusBadge text={obsStatus} color={obsConnected ? C.success : C.accent} />
+            </CardHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-medium mb-1.5" style={{ color: C.textTer }}>WebSocket Password</label>
+                <div className="flex items-center gap-2">
+                   <input
+                    type="password"
+                    value={obsPassword}
+                    onChange={(e) => setObsPassword(e.target.value)}
+                    placeholder="Enter password..."
+                    className="flex-1 border px-3 py-2 text-sm text-white bg-transparent focus:outline-none"
+                    style={inputStyle}
+                  />
+                  <button
+                    onClick={obsConnected ? disconnectOBS : connectOBS}
+                    className="rounded-xl px-4 py-2 text-[11px] font-bold text-white transition-all"
+                    style={{ background: obsConnected ? C.accent : C.info }}
+                  >
+                    {obsConnected ? 'Disconnect' : 'Connect'}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  disabled={!obsConnected}
+                  onClick={() => obsRef.current?.call('StartStream')}
+                  className="flex items-center justify-center gap-2 rounded-xl border p-3 text-[11px] font-bold text-white transition-all hover:bg-white/[0.05] disabled:opacity-30"
+                  style={{ borderColor: C.border }}
+                >
+                  <Play className="h-3.5 w-3.5 text-[#2ecc71]" /> Start OBS
+                </button>
+                <button
+                  disabled={!obsConnected}
+                  onClick={() => obsRef.current?.call('StopStream')}
+                  className="flex items-center justify-center gap-2 rounded-xl border p-3 text-[11px] font-bold text-white transition-all hover:bg-white/[0.05] disabled:opacity-30"
+                  style={{ borderColor: C.border }}
+                >
+                  <Square className="h-3.5 w-3.5 text-[#e63946]" /> Stop OBS
                 </button>
               </div>
             </div>
@@ -1659,6 +1760,7 @@ function renderPage(page: AdminPage): React.ReactNode {
   if (page === 'activity-logs') return <GenericPage title="Activity Logs" subtitle="System activity" icon={<ClipboardList className="h-5 w-5" style={{ color: C.textSec }} />} accent={C.textSec} />
   if (page === 'notifications') return <GenericPage title="Notifications" subtitle="Notification management" icon={<Bell className="h-5 w-5" style={{ color: C.warning }} />} accent={C.warning} />
   if (page === 'admins') return <GenericPage title="Admins" subtitle="Admin team management" icon={<ShieldCheck className="h-5 w-5" style={{ color: C.info }} />} accent={C.info} />
+  if (page === 'ads-analytics') return <AdsAnalyticsPage />
   return null
 }
 
@@ -1818,6 +1920,144 @@ export default function AdminPanel() {
           {renderPage(activePage)}
         </main>
       </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ADS ANALYTICS PAGE
+   ═══════════════════════════════════════════════════════════════ */
+
+function AdsAnalyticsPage() {
+  const [stats, setStats] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
+
+  const fetchStats = async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('Ad')
+        .select(`
+          id,
+          title,
+          type,
+          sportType,
+          stats:AdStats (
+            impressions,
+            clicks,
+            updatedAt
+          )
+        `)
+      
+      if (data) setStats(data)
+    } catch (err) {
+      console.error('Failed to fetch ad stats:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  if (loading) {
+    return <div className="p-12 text-center text-white/20">Loading stats...</div>
+  }
+
+  return (
+    <div className="space-y-6 fade-in-up">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
+            <BarChart3 className="h-5 w-5 text-emerald-500" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Ads Analytics</h2>
+            <p className="text-xs text-white/40">Track impressions, clicks, and CTR per sport</p>
+          </div>
+        </div>
+        <button 
+          onClick={fetchStats}
+          className="rounded-lg border border-white/5 bg-white/5 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-white/10"
+        >
+          <RefreshCw className="mr-2 inline h-3 w-3" /> Refresh
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">Total Impressions</p>
+          <p className="mt-1 text-2xl font-bold text-white">
+            {stats.reduce((acc, ad) => acc + (ad.stats?.impressions || 0), 0).toLocaleString()}
+          </p>
+        </Card>
+        <Card>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">Total Clicks</p>
+          <p className="mt-1 text-2xl font-bold text-white">
+            {stats.reduce((acc, ad) => acc + (ad.stats?.clicks || 0), 0).toLocaleString()}
+          </p>
+        </Card>
+        <Card>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">Average CTR</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-500">
+            {(() => {
+              const totalImps = stats.reduce((acc, ad) => acc + (ad.stats?.impressions || 0), 0)
+              const totalClicks = stats.reduce((acc, ad) => acc + (ad.stats?.clicks || 0), 0)
+              return totalImps > 0 ? ((totalClicks / totalImps) * 100).toFixed(2) : '0.00'
+            })()}%
+          </p>
+        </Card>
+      </div>
+
+      <Card className="!p-0 overflow-hidden">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-white/5 bg-white/[0.02]">
+              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-white/30">Ad Campaign</th>
+              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-white/30">Sport</th>
+              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-white/30 text-right">Impressions</th>
+              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-white/30 text-right">Clicks</th>
+              <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-white/30 text-right">CTR</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {stats.map((ad) => {
+              const ctr = ad.stats?.impressions > 0 
+                ? ((ad.stats.clicks / ad.stats.impressions) * 100).toFixed(2) 
+                : '0.00'
+              
+              return (
+                <tr key={ad.id} className="transition-colors hover:bg-white/[0.01]">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-12 rounded bg-white/5 flex items-center justify-center text-[10px] font-bold text-white/20">
+                        IMG
+                      </div>
+                      <span className="text-xs font-medium text-white">{ad.title || `Campaign #${ad.id.slice(-4)}`}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium text-white/40 capitalize">
+                      {ad.sportType}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right text-xs font-medium text-white/60">
+                    {(ad.stats?.impressions || 0).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 text-right text-xs font-medium text-white/60">
+                    {(ad.stats?.clicks || 0).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 text-right text-xs font-bold text-emerald-500">
+                    {ctr}%
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </Card>
     </div>
   )
 }

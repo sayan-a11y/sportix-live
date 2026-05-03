@@ -1,28 +1,99 @@
-import { useState, useEffect } from 'react'
+'use client'
+import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '@/lib/store'
-import { ArrowLeft, Settings, Maximize, Volume2, VolumeX, Users, Radio } from 'lucide-react'
+import { ArrowLeft, Settings, Maximize, Users, Radio } from 'lucide-react'
 import LiveChat from './LiveChat'
 import MuxPlayer from '@mux/mux-player-react'
-
-const QUALITY_OPTIONS = ['Auto', '1080p', '720p', '480p', '360p']
+import HlsPlayer from './HlsPlayer'
+import { createClient } from '@/lib/supabase/client'
+import { v4 as uuidv4 } from 'uuid'
+import Reactions from './Reactions'
 
 export default function VideoPlayer() {
   const { selectedStream, setCurrentView, setSelectedStream } = useAppStore()
   const [isMuted, setIsMuted] = useState(false)
-  const [quality, setQuality] = useState('Auto')
-  const [showQuality, setShowQuality] = useState(false)
   const [viewerCount, setViewerCount] = useState(selectedStream?.viewerCount || 0)
+  const [showPreRoll, setShowPreRoll] = useState(true)
+  const [videoAdUrl, setVideoAdUrl] = useState<string | null>(null)
+
+  const viewerIdRef = useRef<string>(uuidv4())
+  const supabase = createClient()
 
   useEffect(() => {
     if (!selectedStream) return
-    const interval = setInterval(() => {
-      setViewerCount((prev) => {
-        const delta = Math.floor(Math.random() * 10) - 5
-        return Math.max(10, prev + delta)
-      })
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [selectedStream])
+
+    const streamId = selectedStream.id
+    const viewerId = viewerIdRef.current
+
+    const joinStream = async () => {
+      try {
+        await supabase.from('Viewer').insert([
+          { id: viewerId, streamId: streamId }
+        ])
+      } catch (err) {
+        console.error('Error joining stream:', err)
+      }
+    }
+
+    const updateCount = async () => {
+      const { count } = await supabase
+        .from('Viewer')
+        .select('*', { count: 'exact', head: true })
+        .eq('streamId', streamId)
+      
+      if (count !== null) setViewerCount(count)
+    }
+
+    joinStream()
+    updateCount()
+
+    // Fetch Pre-roll Ad
+    const fetchVideoAd = async () => {
+      const { data } = await supabase
+        .from('Ad')
+        .select('url')
+        .eq('type', 'video')
+        .eq('active', true)
+        .or(`sportType.eq.${selectedStream.category},sportType.eq.all`)
+        .limit(1)
+      
+      if (data && data[0]) {
+        setVideoAdUrl(data[0].url)
+      } else {
+        setShowPreRoll(false)
+      }
+    }
+
+    fetchVideoAd()
+
+    const channel = supabase
+      .channel(`viewers-${streamId}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'Viewer',
+          filter: `streamId=eq.${streamId}`
+        },
+        () => {
+          updateCount()
+        }
+      )
+      .subscribe()
+
+    const leaveStream = async () => {
+      await supabase.from('Viewer').delete().eq('id', viewerId)
+    }
+
+    window.addEventListener('beforeunload', leaveStream)
+
+    return () => {
+      channel.unsubscribe()
+      leaveStream()
+      window.removeEventListener('beforeunload', leaveStream)
+    }
+  }, [selectedStream, supabase])
 
   if (!selectedStream) return null
 
@@ -31,9 +102,10 @@ export default function VideoPlayer() {
     return count.toString()
   }
 
+  const isFreeStream = selectedStream.playbackId?.startsWith('http')
+
   return (
     <div className="sportix-bg min-h-screen">
-      {/* Minimal Header */}
       <header className="sticky top-0 z-50 flex h-14 items-center gap-3 border-b border-white/5 bg-[#02040a]/80 px-4 backdrop-blur-xl">
         <button
           onClick={() => {
@@ -58,26 +130,53 @@ export default function VideoPlayer() {
         </div>
       </header>
 
-      {/* Player + Chat layout */}
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col lg:flex-row">
-          {/* Player Area */}
           <div className="flex-1 p-4 md:p-6">
-            <div className="relative aspect-video overflow-hidden rounded-2xl border border-white/5 bg-black shadow-2xl">
+            <div id="video-container" className="relative aspect-video overflow-hidden rounded-2xl border border-white/5 bg-black shadow-2xl">
+              {showPreRoll && videoAdUrl ? (
+                <div className="absolute inset-0 z-20 bg-black">
+                  <video 
+                    src={videoAdUrl} 
+                    autoPlay 
+                    onEnded={() => setShowPreRoll(false)}
+                    className="h-full w-full object-contain"
+                  />
+                  <div className="absolute top-4 right-4 z-30">
+                    <button 
+                      onClick={() => setShowPreRoll(false)}
+                      className="rounded-full bg-black/60 px-4 py-1.5 text-xs font-bold text-white/80 hover:text-white backdrop-blur-md border border-white/10"
+                    >
+                      Skip Ad
+                    </button>
+                  </div>
+                  <div className="absolute bottom-4 left-4 rounded-md bg-black/40 px-2 py-1 text-[10px] font-bold text-white/60 uppercase tracking-widest border border-white/5">
+                    Ad • Playing
+                  </div>
+                </div>
+              ) : null}
+
               {selectedStream.playbackId ? (
-                <MuxPlayer
-                  playbackId={selectedStream.playbackId}
-                  metadata={{
-                    video_id: selectedStream.id,
-                    video_title: selectedStream.title,
-                    viewer_user_id: 'user-123',
-                  }}
-                  streamType="live"
-                  autoPlay
-                  muted={isMuted}
-                  className="h-full w-full"
-                  style={{ aspectRatio: '16/9' }}
-                />
+                isFreeStream ? (
+                  <HlsPlayer
+                    src={selectedStream.playbackId}
+                    muted={isMuted}
+                    className="h-full w-full"
+                  />
+                ) : (
+                  <MuxPlayer
+                    playbackId={selectedStream.playbackId}
+                    metadata={{
+                      video_id: selectedStream.id,
+                      video_title: selectedStream.title,
+                    }}
+                    streamType="live"
+                    autoPlay
+                    muted={isMuted}
+                    className="h-full w-full"
+                    style={{ aspectRatio: '16/9' }}
+                  />
+                )
               ) : (
                 <div className="absolute inset-0 bg-gradient-to-br from-[#0b0f1a] via-[#111827] to-[#1a2235] flex items-center justify-center">
                    <div className="text-center">
@@ -93,7 +192,6 @@ export default function VideoPlayer() {
               )}
             </div>
 
-            {/* Stream Info */}
             <div className="mt-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -115,6 +213,13 @@ export default function VideoPlayer() {
               
               <h2 className="text-2xl font-bold text-white tracking-tight">{selectedStream.title}</h2>
               
+              <Reactions streamId={selectedStream.id} />
+
+              {/* Targeted Banner Ad */}
+              <div className="py-2">
+                <AdBanner sportType={selectedStream.category} frequencyControl={true} />
+              </div>
+
               {selectedStream.description && (
                 <p className="text-[15px] text-white/50 leading-relaxed max-w-3xl">{selectedStream.description}</p>
               )}
@@ -129,7 +234,6 @@ export default function VideoPlayer() {
             </div>
           </div>
 
-          {/* Chat Sidebar */}
           <div className="w-full border-l border-white/5 lg:w-[400px] bg-black/20">
             <div className="sticky top-14 h-[calc(100vh-3.5rem)]">
               <div className="h-full">

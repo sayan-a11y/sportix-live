@@ -93,3 +93,40 @@ model ContinueWatching {
   progress  Float    @default(0)
   watchedAt DateTime @default(now())
 }
+
+model Viewer {
+  id        String   @id @default(cuid())
+  streamId  String
+  joinedAt  DateTime @default(now())
+
+  @@index([streamId])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  streamId  String
+  type      String   // like, heart, fire
+  createdAt DateTime @default(now())
+
+  @@index([streamId])
+}
+
+model Ad {
+  id           String    @id @default(cuid())
+  type         String    // banner, video
+  sportType    String    @default("all") // cricket, football, all
+  url          String
+  redirectLink String?
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  stats        AdStats?
+}
+
+model AdStats {
+  id          String   @id @default(cuid())
+  adId        String   @unique
+  ad          Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  updatedAt   DateTime @default(now()) @updatedAt
+}

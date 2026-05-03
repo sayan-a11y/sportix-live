@@ -1,9 +1,8 @@
 'use client'
-
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { io, Socket } from 'socket.io-client'
 import { useAppStore } from '@/lib/store'
 import { Send, Trash2, Star, Shield, Smile } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface ChatMessage {
   id: string
@@ -16,71 +15,56 @@ interface ChatMessage {
 }
 
 export default function LiveChat({ streamId, isAdmin = false }: { streamId: string; isAdmin?: boolean }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [input, setInput] = useState('')
-  const [username, setUsername] = useState('Anonymous')
-  const [isConnected, setIsConnected] = useState(false)
-  const [showUsernameInput, setShowUsernameInput] = useState(true)
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const socketRef = useRef<Socket | null>(null)
+  const supabase = createClient()
 
   useEffect(() => {
-    // Generate username only on client to avoid hydration mismatch
-    const randomId = Math.floor(Math.random() * 9999)
-    setUsername(`User_${randomId}`)
-  }, [])
+    // 1. Fetch initial messages
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
+        .from('ChatMessage')
+        .select('*')
+        .eq('streamId', streamId)
+        .order('createdAt', { ascending: true })
+        .limit(100)
 
-  useEffect(() => {
-    let socket: Socket | null = null
-    try {
-      socket = io({
-        path: '/api/socket',
-        addTrailingSlash: false,
-        transports: ['websocket', 'polling'],
-        forceNew: true,
-        reconnection: true,
-        reconnectionAttempts: 3,
-        timeout: 5000,
-      })
-    } catch (err) {
-      console.warn('Chat socket initialization failed:', err)
+      if (data) setMessages(data)
     }
 
-    socketRef.current = socket
-    if (!socket) return
+    fetchMessages()
 
-    socket.on('connect', () => {
-      setIsConnected(true)
-      socket?.emit('join-stream', streamId)
-    })
-
-    socket.on('disconnect', () => setIsConnected(false))
-
-    socket.on('chat-message', (msg: ChatMessage) => {
-      setMessages((prev) => [...prev.slice(-99), msg])
-    })
-
-    socket.on('message-deleted', ({ messageId }: { messageId: string }) => {
-      setMessages((prev) => prev.filter((m) => m.id !== messageId))
-    })
-
-    socket.on('message-highlighted', ({ messageId }: { messageId: string }) => {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, isHighlighted: true } : m))
+    // 2. Subscribe to new messages
+    const channel = supabase
+      .channel(`chat-${streamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ChatMessage',
+          filter: `streamId=eq.${streamId}`,
+        },
+        (payload) => {
+          const newMessage = payload.new as ChatMessage
+          setMessages((prev) => [...prev.slice(-99), newMessage])
+        }
       )
-    })
-
-    // Load initial messages from DB
-    fetch(`/api/chat?streamId=${streamId}`)
-      .then((r) => r.ok ? r.json() : [])
-      .then((msgs: ChatMessage[]) => {
-        if (Array.isArray(msgs)) setMessages(msgs)
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'ChatMessage',
+        },
+        (payload) => {
+          setMessages((prev) => prev.filter((m) => m.id !== payload.old.id))
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') setIsConnected(true)
       })
-      .catch(() => {})
 
     return () => {
-      socket?.emit('leave-stream', streamId)
-      socket?.disconnect()
+      supabase.removeChannel(channel)
     }
   }, [streamId])
 
@@ -90,23 +74,27 @@ export default function LiveChat({ streamId, isAdmin = false }: { streamId: stri
     }
   }, [messages])
 
-  const sendMessage = useCallback(() => {
-    if (!socketRef.current || !input.trim()) return
-    socketRef.current.emit('chat-message', {
-      streamId,
-      username,
-      message: input.trim(),
-      isAdmin,
-    })
-    setInput('')
-  }, [streamId, username, input, isAdmin])
+  const sendMessage = async () => {
+    if (!input.trim()) return
 
-  const deleteMessage = (messageId: string) => {
-    socketRef.current?.emit('admin-delete-message', { streamId, messageId })
+    const { error } = await supabase.from('ChatMessage').insert([
+      {
+        streamId,
+        username,
+        message: input.trim(),
+        isAdmin: isAdmin,
+      },
+    ])
+
+    if (error) {
+      console.error('Error sending message:', error.message)
+    } else {
+      setInput('')
+    }
   }
 
-  const highlightMessage = (messageId: string) => {
-    socketRef.current?.emit('admin-highlight-message', { streamId, messageId })
+  const deleteMessage = async (messageId: string) => {
+    await supabase.from('ChatMessage').delete().eq('id', messageId)
   }
 
   const formatTime = (dateStr: string) => {

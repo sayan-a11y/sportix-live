@@ -170,10 +170,10 @@ export function ContentSection({
 }) {
   return (
     <section className="fade-in-up">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between px-1">
         <div className="flex items-center gap-2.5">
           {icon}
-          <h2 className="text-[15px] font-bold text-white">{title}</h2>
+          <h2 className="text-[16px] font-bold text-white tracking-tight">{title}</h2>
         </div>
         {viewAll && (
           <button className="flex items-center gap-1 text-[12px] font-medium text-[#00ff88] transition-colors hover:text-[#00dd75]">
@@ -182,6 +182,34 @@ export function ContentSection({
         )}
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        {children}
+      </div>
+    </section>
+  )
+}
+
+export function NetflixSection({
+  title,
+  icon,
+  children,
+}: {
+  title: string
+  icon: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <section className="fade-in-up">
+      <div className="mb-4 flex items-center justify-between px-1">
+        <div className="flex items-center gap-2.5">
+          {icon}
+          <h2 className="text-[18px] font-bold text-white tracking-tight">{title}</h2>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-[2px] w-8 rounded-full bg-[#00ff88]" />
+          <div className="h-[2px] w-2 rounded-full bg-white/10" />
+        </div>
+      </div>
+      <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-1 px-1 snap-x">
         {children}
       </div>
     </section>

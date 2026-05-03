@@ -11,6 +11,7 @@ const NAV_ITEMS: { id: PageView; label: string; icon: React.ComponentType<{ clas
   { id: 'home', label: 'Home', icon: Home },
   { id: 'live', label: 'Live Match', icon: Radio },
   { id: 'popular', label: 'Popular', icon: Flame },
+  { id: 'replays', label: 'Replays', icon: Play },
   { id: 'sports', label: 'Sports', icon: Trophy },
   { id: 'schedule', label: 'Schedule', icon: Calendar },
   { id: 'leagues', label: 'Leagues', icon: Award },

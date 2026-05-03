@@ -10,10 +10,11 @@ import LiveSlider from '@/components/sportix/LiveSlider'
 import HeroBanner from '@/components/sportix/HeroBanner'
 import CategoryTabs from '@/components/sportix/CategoryTabs'
 import VideoPlayer from '@/components/sportix/VideoPlayer'
+import AdBanner from '@/components/sportix/AdBanner'
 import BottomNav from '@/components/sportix/BottomNav'
 import LoginPage from '@/components/auth/LoginPage'
 import SignupPage from '@/components/auth/SignupPage'
-import { ContentSection, VideoCard } from '@/components/sportix/VideoCard'
+import { ContentSection, VideoCard, NetflixSection } from '@/components/sportix/VideoCard'
 import {
   Star, Clock, Flame, TrendingUp, Play, ArrowLeft,
   Radio, Trophy, Calendar, Award, Heart, ListVideo, Settings,
@@ -494,6 +495,32 @@ function HighlightsPage({ videos }: { videos: VideoData[] }) {
         <div className="glass-card p-12 text-center">
           <Flame className="h-10 w-10 text-white/10 mx-auto mb-2" />
           <p className="text-sm text-white/30">No highlights available</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ──────────────────────── Replays Page ──────────────────────── */
+
+function ReplaysPage({ videos }: { videos: VideoData[] }) {
+  const store = useAppStore()
+  const replayVideos = videos.filter(v => v.category === 'Replay')
+
+  return (
+    <div className="space-y-6 fade-in-up p-4 lg:p-5">
+      <PageHeader title="Full Match Replays" subtitle={`${replayVideos.length} matches archived`} icon={<ListVideo className="h-5 w-5" />} />
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        {replayVideos.map((video) => (
+          <VideoCard key={video.id} video={video} onSelect={(v) => openVideo(v, store)} />
+        ))}
+      </div>
+
+      {replayVideos.length === 0 && (
+        <div className="glass-card p-12 text-center">
+          <ListVideo className="h-10 w-10 text-white/10 mx-auto mb-2" />
+          <p className="text-sm text-white/30">No replays available yet</p>
         </div>
       )}
     </div>
@@ -1045,6 +1072,7 @@ export default function Home() {
   const liveStreams = streams.filter(s => s.status === 'live')
   const featuredVideos = videos.filter(v => v.isFeatured)
   const highlightVideos = videos.filter(v => v.category === 'highlights')
+  const replayVideos = videos.filter(v => v.category === 'Replay')
   const featuredStream = liveStreams[0]
   const filteredVideos = activeFilter === 'all' ? videos : videos.filter(v => v.category === activeFilter)
 
@@ -1056,6 +1084,7 @@ export default function Home() {
     if (currentView === 'schedule') return <SchedulePage streams={streams} />
     if (currentView === 'leagues') return <LeaguesPage />
     if (currentView === 'highlights') return <HighlightsPage videos={videos} />
+    if (currentView === 'replays') return <ReplaysPage videos={videos} />
     if (currentView === 'favorites') return <FavoritesPage videos={videos} />
     if (currentView === 'mylist') return <MyListPage videos={videos} />
     if (currentView === 'settings') return <SettingsPage session={session} />
@@ -1077,6 +1106,11 @@ export default function Home() {
         {/* Category Tabs — mobile */}
         <div className="lg:hidden">
           <CategoryTabs onFilter={setActiveFilter} />
+        </div>
+
+        {/* Ads Section */}
+        <div className="max-w-4xl mx-auto px-1">
+          <AdBanner />
         </div>
 
         {/* Hero Banner — all screens */}
@@ -1188,6 +1222,20 @@ export default function Home() {
               ))}
             </div>
           </section>
+        )}
+
+        {/* Replays Section (Netflix Style) */}
+        {replayVideos.length > 0 && (
+          <NetflixSection 
+            title="Recent Match Replays" 
+            icon={<Play className="h-5 w-5 text-[#00ff88]" />}
+          >
+            {replayVideos.map((video) => (
+              <div key={video.id} className="min-w-[280px] sm:min-w-[320px] snap-start">
+                <VideoCard video={video} onSelect={(v) => openVideo(v, useAppStore)} />
+              </div>
+            ))}
+          </NetflixSection>
         )}
 
         {/* Highlights */}

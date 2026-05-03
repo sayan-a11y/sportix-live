@@ -50,7 +50,10 @@ import {
   ChevronUp,
   Info,
   Home,
+  MonitorPlay,
+  Unplug,
 } from 'lucide-react'
+import OBSWebSocket from 'obs-websocket-js'
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES
@@ -458,7 +461,7 @@ function TopHeader({ sidebarCollapsed }: { sidebarCollapsed: boolean }) {
    STREAM PREVIEW CARD
    ═══════════════════════════════════════════════════════════════ */
 
-function StreamPreviewCard({ isLive, onGoLive }: { isLive: boolean; onGoLive: () => void }) {
+function StreamPreviewCard({ isLive }: { isLive: boolean }) {
   return (
     <GlassCard className="p-0 overflow-hidden" glow={isLive}>
       {/* Preview Area */}
@@ -626,27 +629,101 @@ function StreamConnectionCard({ rtmpUrl, streamKey }: { rtmpUrl: string; streamK
       </div>
 
       {/* OBS Guide */}
-      <div className="rounded-xl border p-4" style={{ borderColor: COLORS.border, background: 'rgba(255,255,255,0.01)' }}>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[12px] font-semibold text-white/60">OBS Setup Guide</p>
-          <button className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:text-white/80" style={{ color: COLORS.accent }}>
-            <ExternalLink className="h-3 w-3" /> Watch Guide
-          </button>
+    </GlassCard>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OBS CONTROL CARD
+   ═══════════════════════════════════════════════════════════════ */
+
+function OBSControlCard({ 
+  connected, 
+  onConnect, 
+  onDisconnect, 
+  ip, 
+  setIp, 
+  password, 
+  setPassword 
+}: { 
+  connected: boolean; 
+  onConnect: () => void; 
+  onDisconnect: () => void;
+  ip: string;
+  setIp: (v: string) => void;
+  password: string;
+  setPassword: (v: string) => void;
+}) {
+  return (
+    <GlassCard className="p-5" glow={connected}>
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-[14px] font-semibold text-white flex items-center gap-2">
+          <MonitorPlay className="h-4 w-4" style={{ color: connected ? COLORS.success : COLORS.warning }} />
+          OBS Remote Control
+        </h3>
+        <span
+          className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold"
+          style={{ 
+            background: connected ? 'rgba(0,200,83,0.10)' : 'rgba(255,184,0,0.10)', 
+            color: connected ? COLORS.success : COLORS.warning 
+          }}
+        >
+          <StatusDot status={connected ? 'online' : 'offline'} size={6} />
+          {connected ? 'Connected' : 'Disconnected'}
+        </span>
+      </div>
+
+      <div className="space-y-3 mb-5">
+        <div>
+          <label className="block text-[10px] font-medium text-white/30 mb-1 uppercase tracking-wider">OBS WebSocket IP</label>
+          <input
+            type="text"
+            value={ip}
+            onChange={(e) => setIp(e.target.value)}
+            placeholder="localhost:4455"
+            className="w-full rounded-xl border px-3.5 py-2 text-[12px] text-white/70 focus:outline-none"
+            style={{ borderColor: COLORS.border, background: 'rgba(255,255,255,0.02)' }}
+          />
         </div>
-        <div className="space-y-2">
-          {obsSteps.map((s) => (
-            <div key={s.step} className="flex items-start gap-2.5">
-              <div
-                className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
-                style={{ background: 'rgba(255,255,255,0.06)' }}
-              >
-                {s.step}
-              </div>
-              <p className="text-[11px] text-white/35 leading-relaxed pt-0.5">{s.text}</p>
-            </div>
-          ))}
+        <div>
+          <label className="block text-[10px] font-medium text-white/30 mb-1 uppercase tracking-wider">WebSocket Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Your OBS password"
+            className="w-full rounded-xl border px-3.5 py-2 text-[12px] text-white/70 focus:outline-none"
+            style={{ borderColor: COLORS.border, background: 'rgba(255,255,255,0.02)' }}
+          />
         </div>
       </div>
+
+      <button
+        onClick={connected ? onDisconnect : onConnect}
+        className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-bold text-white transition-all duration-300"
+        style={{
+          background: connected ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #3B82F6, #2563EB)',
+          border: connected ? `1px solid ${COLORS.border}` : 'none',
+        }}
+      >
+        {connected ? (
+          <>
+            <Unplug className="h-4 w-4" />
+            Disconnect OBS
+          </>
+        ) : (
+          <>
+            <Wifi className="h-4 w-4" />
+            Connect OBS
+          </>
+        )}
+      </button>
+
+      {!connected && (
+        <p className="text-[10px] text-white/20 mt-3 text-center">
+          Make sure OBS WebSocket is enabled in Tools {'>'} WebSocket Server Settings
+        </p>
+      )}
     </GlassCard>
   )
 }
@@ -655,7 +732,11 @@ function StreamConnectionCard({ rtmpUrl, streamKey }: { rtmpUrl: string; streamK
    START LIVE STREAM CARD (CENTER)
    ═══════════════════════════════════════════════════════════════ */
 
-function StartLiveStreamCard({ isLive, onGoLive, onStopLive }: { isLive: boolean; onGoLive: () => void; onStopLive: () => void }) {
+function StartLiveStreamCard({ isLive, onGoLive, onStopLive }: { 
+  isLive: boolean; 
+  onGoLive: (data: { title: string; category: string; description: string }) => void; 
+  onStopLive: () => void 
+}) {
   const [category, setCategory] = useState<'cricket' | 'football'>('cricket')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -765,7 +846,7 @@ function StartLiveStreamCard({ isLive, onGoLive, onStopLive }: { isLive: boolean
         {!isLive ? (
           <>
             <button
-              onClick={onGoLive}
+              onClick={() => onGoLive({ title, category, description })}
               className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-[14px] font-bold text-white transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
               style={{
                 background: 'linear-gradient(135deg, #FF2E2E, #cc1a1a)',
@@ -1057,15 +1138,49 @@ function StreamingChecklist({ isLive }: { isLive: boolean }) {
    PAGE CONTENT ROUTER
    ═══════════════════════════════════════════════════════════════ */
 
-function PageContent({ activePage, isLive, onGoLive, onStopLive, streamInfo }: {
+function PageContent({ 
+  activePage, 
+  isLive, 
+  onGoLive, 
+  onStopLive, 
+  streamInfo,
+  obsConnected,
+  connectOBS,
+  disconnectOBS,
+  obsIp,
+  setObsIp,
+  obsPassword,
+  setObsPassword
+}: {
   activePage: SidebarPage
   isLive: boolean
-  onGoLive: () => void
+  onGoLive: (data: { title: string; category: string; description: string }) => void
   onStopLive: () => void
   streamInfo: any
+  obsConnected: boolean
+  connectOBS: () => void
+  disconnectOBS: () => void
+  obsIp: string
+  setObsIp: (v: string) => void
+  obsPassword: string
+  setObsPassword: (v: string) => void
 }) {
   if (activePage === 'dashboard') return <DashboardPageContent />
-  if (activePage === 'live-control') return <LiveControlPageContent isLive={isLive} onGoLive={onGoLive} onStopLive={onStopLive} streamInfo={streamInfo} />
+  if (activePage === 'live-control') return (
+    <LiveControlPageContent 
+      isLive={isLive} 
+      onGoLive={onGoLive} 
+      onStopLive={onStopLive} 
+      streamInfo={streamInfo} 
+      obsConnected={obsConnected}
+      connectOBS={connectOBS}
+      disconnectOBS={disconnectOBS}
+      obsIp={obsIp}
+      setObsIp={setObsIp}
+      obsPassword={obsPassword}
+      setObsPassword={setObsPassword}
+    />
+  )
   if (activePage === 'settings') return <SettingsPageContent />
   if (activePage === 'analytics') return <AnalyticsPageContent />
   if (activePage === 'stream-history') return <StreamHistoryContent />
@@ -1227,11 +1342,30 @@ function DashboardPageContent() {
    LIVE CONTROL PAGE (Main Grid)
    ═══════════════════════════════════════════════════════════════ */
 
-function LiveControlPageContent({ isLive, onGoLive, onStopLive, streamInfo }: {
+function LiveControlPageContent({ 
+  isLive, 
+  onGoLive, 
+  onStopLive, 
+  streamInfo,
+  obsConnected,
+  connectOBS,
+  disconnectOBS,
+  obsIp,
+  setObsIp,
+  obsPassword,
+  setObsPassword
+}: {
   isLive: boolean
-  onGoLive: () => void
+  onGoLive: (data: { title: string; category: string; description: string }) => void
   onStopLive: () => void
   streamInfo: any
+  obsConnected: boolean
+  connectOBS: () => void
+  disconnectOBS: () => void
+  obsIp: string
+  setObsIp: (v: string) => void
+  obsPassword: string
+  setObsPassword: (v: string) => void
 }) {
   return (
     <div className="space-y-6 fade-in-up">
@@ -1239,7 +1373,16 @@ function LiveControlPageContent({ isLive, onGoLive, onStopLive, streamInfo }: {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         {/* LEFT COLUMN */}
         <div className="xl:col-span-1 space-y-5">
-          <StreamPreviewCard isLive={isLive} onGoLive={onGoLive} />
+          <StreamPreviewCard isLive={isLive} />
+          <OBSControlCard 
+            connected={obsConnected}
+            onConnect={connectOBS}
+            onDisconnect={disconnectOBS}
+            ip={obsIp}
+            setIp={setObsIp}
+            password={obsPassword}
+            setPassword={setObsPassword}
+          />
           <StreamConnectionCard 
             rtmpUrl={streamInfo?.rtmpUrl} 
             streamKey={streamInfo?.streamKey} 
@@ -1461,6 +1604,32 @@ export default function LiveControlRoom() {
   const [isLive, setIsLive] = useState(false)
   const [streamInfo, setStreamInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  
+  // OBS WebSocket State
+  const obsRef = useRef<OBSWebSocket | null>(null)
+  const [obsConnected, setObsConnected] = useState(false)
+  const [obsPassword, setObsPassword] = useState('')
+  const [obsIp, setObsIp] = useState('localhost:4455')
+
+  const connectOBS = useCallback(async () => {
+    try {
+      if (!obsRef.current) obsRef.current = new OBSWebSocket()
+      await obsRef.current.connect(`ws://${obsIp}`, obsPassword)
+      setObsConnected(true)
+      toast.success('OBS Connected successfully!')
+    } catch (err: any) {
+      console.error('OBS Connection failed:', err)
+      toast.error(`OBS Connection failed: ${err.message || 'Unknown error'}`)
+    }
+  }, [obsIp, obsPassword])
+
+  const disconnectOBS = useCallback(async () => {
+    if (obsRef.current) {
+      await obsRef.current.disconnect()
+      setObsConnected(false)
+      toast.info('OBS Disconnected')
+    }
+  }, [])
 
   const fetchStream = useCallback(async () => {
     try {
@@ -1480,7 +1649,7 @@ export default function LiveControlRoom() {
     fetchStream()
   }, [fetchStream])
 
-  const handleGoLive = useCallback(async () => {
+  const handleGoLive = useCallback(async (data: { title: string; category: string; description: string }) => {
     if (!streamInfo) {
       const loadingToast = toast.loading('Creating your live stream...')
       try {
@@ -1488,23 +1657,87 @@ export default function LiveControlRoom() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            title: 'New Live Match',
-            category: 'cricket'
+            title: data.title || 'New Live Match',
+            category: data.category || 'cricket',
+            description: data.description || ''
           })
         })
-        const data = await res.json()
-        if (data.error) throw new Error(data.error)
-        setStreamInfo(data)
-        toast.success('Live stream created! Ready to connect OBS.', { id: loadingToast })
+        const result = await res.json()
+        if (result.error) throw new Error(result.error)
+        
+        // Sync status to live immediately after creation
+        await fetch(`/api/streams/${result.id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'live' })
+        })
+        
+        setStreamInfo({ ...result, status: 'live' })
+        toast.success('Live stream created and status set to LIVE!', { id: loadingToast })
+        
+        // Auto Trigger OBS if connected
+        if (obsConnected && obsRef.current) {
+          try {
+            await obsRef.current.call('StartStream')
+            toast.success('OBS Streaming started automatically!')
+          } catch (err) {
+            console.error('Failed to trigger OBS:', err)
+          }
+        }
       } catch (err: any) {
         toast.error(`Failed to create stream: ${err.message}`, { id: loadingToast })
         return
       }
+    } else {
+      // If streamInfo exists, just update its status to live
+      try {
+        await fetch(`/api/streams/${streamInfo.id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'live' })
+        })
+        setStreamInfo({ ...streamInfo, status: 'live' })
+        
+        // Auto Trigger OBS if connected
+        if (obsConnected && obsRef.current) {
+          try {
+            await obsRef.current.call('StartStream')
+            toast.success('OBS Streaming started automatically!')
+          } catch (err) {
+            console.error('Failed to trigger OBS:', err)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync live status:', err)
+      }
     }
     setIsLive(true)
-  }, [streamInfo])
+  }, [streamInfo, obsConnected])
 
-  const handleStopLive = useCallback(() => setIsLive(false), [])
+  const handleStopLive = useCallback(async () => {
+    if (streamInfo) {
+      try {
+        await fetch(`/api/streams/${streamInfo.id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'offline' })
+        })
+        
+        // Auto Stop OBS if connected
+        if (obsConnected && obsRef.current) {
+          try {
+            await obsRef.current.call('StopStream')
+            toast.info('OBS Streaming stopped automatically.')
+          } catch (err) {
+            console.error('Failed to stop OBS:', err)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync offline status:', err)
+      }
+    }
+    setIsLive(false)
+  }, [streamInfo, obsConnected])
   const handleBack = useCallback(() => setCurrentView('home'), [setCurrentView])
 
   // Close dropdowns on outside click
@@ -1541,6 +1774,13 @@ export default function LiveControlRoom() {
           onGoLive={handleGoLive}
           onStopLive={handleStopLive}
           streamInfo={streamInfo}
+          obsConnected={obsConnected}
+          connectOBS={connectOBS}
+          disconnectOBS={disconnectOBS}
+          obsIp={obsIp}
+          setObsIp={setObsIp}
+          obsPassword={obsPassword}
+          setObsPassword={setObsPassword}
         />
       </main>
     </div>
